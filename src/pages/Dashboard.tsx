@@ -9,6 +9,17 @@ import SettingsDialog from "@/components/dashboard/SettingsDialog";
 import ReportDialog from "@/components/dashboard/ReportDialog";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Tx {
   id: string;
@@ -68,8 +79,14 @@ const Dashboard = () => {
   }, [user, loadTxs]);
 
   const deleteTx = async (id: string) => {
+    setTxs((prev) => prev.filter((t) => t.id !== id));
     const { error } = await supabase.from("transactions").delete().eq("id", id);
-    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      loadTxs();
+    } else {
+      toast({ title: "Movimentação excluída" });
+    }
   };
 
   const { filteredTxs, periodLabel } = useMemo(() => {
@@ -215,9 +232,25 @@ const Dashboard = () => {
                     <p className={`font-display font-bold ${t.type === "income" ? "text-success" : "text-danger"}`}>
                       {t.type === "income" ? "+" : "-"}{formatBRL(Number(t.amount))}
                     </p>
-                    <Button size="icon" variant="ghost" onClick={() => deleteTx(t.id)} className="h-8 w-8 text-muted-foreground hover:text-danger">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-danger">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir movimentação?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta ação não pode ser desfeita. A movimentação será removida permanentemente.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteTx(t.id)}>Excluir</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </li>
               ))}
