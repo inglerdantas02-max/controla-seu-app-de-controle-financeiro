@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { signIn, signUp, resetPassword } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
-import { Wallet } from "lucide-react";
+import logo from "@/assets/logo.png";
 
 const emailSchema = z.string().trim().email("Email inválido").max(255);
 const pwdSchema = z.string().min(6, "Mínimo 6 caracteres").max(72);
@@ -65,9 +65,7 @@ const Auth = () => {
     <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
-            <Wallet className="w-5 h-5 text-primary-foreground" />
-          </div>
+          <img src={logo} alt="CONTROLA" className="w-10 h-10 rounded-xl shadow-glow" />
           <span className="font-display font-bold text-2xl">CONTROLA</span>
         </Link>
         <div className="bg-card border border-border rounded-3xl p-8 shadow-soft">
