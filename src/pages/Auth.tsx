@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,8 +20,11 @@ const Auth = () => {
   const [mode, setMode] = useState<"login" | "signup" | "forgot">(initial);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -44,10 +48,18 @@ const Auth = () => {
       pwdSchema.parse(password);
       if (mode === "signup") {
         nameSchema.parse(name);
+        if (password !== confirmPassword) {
+          toast.error("As senhas não coincidem");
+          setLoading(false);
+          return;
+        }
         const { error } = await signUp(email, password, name);
         if (error) throw error;
-        toast.success("Cadastro criado! Faça login para continuar.");
-        setMode("login");
+        // Auto login after signup
+        const { error: signInError } = await signIn(email, password);
+        if (signInError) throw signInError;
+        toast.success("Conta criada com sucesso!");
+        navigate("/dashboard");
       } else {
         const { error } = await signIn(email, password);
         if (error) throw error;
@@ -93,7 +105,50 @@ const Auth = () => {
             {mode !== "forgot" && (
               <div>
                 <Label htmlFor="password">Senha</Label>
-                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPwd ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPwd((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showPwd ? "Ocultar senha" : "Mostrar senha"}
+                  >
+                    {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            )}
+            {mode === "signup" && (
+              <div>
+                <Label htmlFor="confirmPassword">Confirmar senha</Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPwd ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPwd((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showConfirmPwd ? "Ocultar senha" : "Mostrar senha"}
+                  >
+                    {showConfirmPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {confirmPassword && password !== confirmPassword && (
+                  <p className="text-sm text-destructive mt-1">As senhas não coincidem</p>
+                )}
               </div>
             )}
             <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
