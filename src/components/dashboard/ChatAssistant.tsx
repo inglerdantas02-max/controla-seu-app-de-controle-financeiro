@@ -6,7 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-import { Send, Sparkles, Check, X, Loader2 } from "lucide-react";
+import { Send, Sparkles, Check, X, Loader2, Mic, MicOff } from "lucide-react";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 interface PendingTransaction {
   type: "income" | "expense";
@@ -153,19 +154,7 @@ const ChatAssistant = ({ open, onOpenChange, onTransactionSaved }: Props) => {
           </div>
         </ScrollArea>
 
-        <div className="border-t p-3 flex gap-2">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="Ex: Gastei 30 com almoço"
-            disabled={loading}
-            className="rounded-full"
-          />
-          <Button onClick={send} disabled={loading || !input.trim()} size="icon" variant="hero" className="shrink-0">
-            <Send className="w-4 h-4" />
-          </Button>
-        </div>
+        <VoiceInputRow input={input} setInput={setInput} send={send} loading={loading} />
       </DialogContent>
     </Dialog>
   );
