@@ -79,8 +79,14 @@ const Dashboard = () => {
   }, [user, loadTxs]);
 
   const deleteTx = async (id: string) => {
+    setTxs((prev) => prev.filter((t) => t.id !== id));
     const { error } = await supabase.from("transactions").delete().eq("id", id);
-    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      loadTxs();
+    } else {
+      toast({ title: "Movimentação excluída" });
+    }
   };
 
   const { filteredTxs, periodLabel } = useMemo(() => {
