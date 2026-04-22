@@ -6,7 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, Save } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save, Users as UsersIcon, Package } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 interface Plan {
   id: string;
@@ -17,18 +27,36 @@ interface Plan {
   sort_order: number;
 }
 
+interface Profile {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  plan_id: string | null;
+  status: string;
+}
+
 const Admin = () => {
   const { user, isAdmin, loading } = useAuth();
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [stats, setStats] = useState({ users: 0 });
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [stats, setStats] = useState({ users: 0, active: 0, revenue: 0 });
 
   const load = async () => {
-    const [{ data: p }, { count }] = await Promise.all([
+    const [{ data: p }, { data: prof, count }] = await Promise.all([
       supabase.from("plans").select("*").order("sort_order"),
-      supabase.from("profiles").select("*", { count: "exact", head: true }),
+      supabase.from("profiles").select("*", { count: "exact" }).order("created_at", { ascending: false }),
     ]);
     if (p) setPlans(p as Plan[]);
-    setStats({ users: count || 0 });
+    if (prof) {
+      setProfiles(prof as Profile[]);
+      const active = prof.filter((u: any) => u.status === "active").length;
+      const planMap = new Map((p || []).map((pl: any) => [pl.id, Number(pl.price)]));
+      const revenue = prof.reduce((sum: number, u: any) => {
+        if (u.status !== "active") return sum;
+        return sum + (planMap.get(u.plan_id) || 0);
+      }, 0);
+      setStats({ users: count || 0, active, revenue });
+    }
   };
 
   useEffect(() => {
@@ -62,6 +90,28 @@ const Admin = () => {
     else load();
   };
 
+  const updateUserPlan = async (userId: string, planId: string) => {
+    const { error } = await supabase.from("profiles").update({ plan_id: planId }).eq("id", userId);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Plano alterado");
+      load();
+    }
+  };
+
+  const toggleUserStatus = async (userId: string, current: string) => {
+    const next = current === "active" ? "inactive" : "active";
+    const { error } = await supabase.from("profiles").update({ status: next }).eq("id", userId);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(next === "active" ? "Usuário ativado" : "Usuário desativado");
+      load();
+    }
+  };
+
+  const formatBRL = (n: number) =>
+    n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
   return (
     <div className="min-h-screen bg-background">
       <nav className="border-b border-border">
@@ -69,76 +119,142 @@ const Admin = () => {
           <Link to="/dashboard" className="flex items-center gap-2 text-sm">
             <ArrowLeft className="w-4 h-4" /> Voltar
           </Link>
-          <h1 className="font-display font-bold text-lg">Admin</h1>
+          <h1 className="font-display font-bold text-lg">Painel Admin</h1>
           <div />
         </div>
       </nav>
-      <main className="container py-10 space-y-10">
+      <main className="container py-10 space-y-8">
         <section>
-          <h2 className="font-display text-2xl font-bold mb-4">Visão geral</h2>
           <div className="grid sm:grid-cols-3 gap-4">
             <StatCard label="Total de usuários" value={stats.users} />
-            <StatCard label="Usuários ativos" value={stats.users} />
-            <StatCard label="Receita estimada" value="R$ 0,00" />
+            <StatCard label="Usuários ativos" value={stats.active} />
+            <StatCard label="Receita estimada" value={formatBRL(stats.revenue)} />
           </div>
         </section>
 
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-2xl font-bold">Planos</h2>
-            <Button onClick={addPlan} variant="hero" size="sm"><Plus className="w-4 h-4" /> Novo plano</Button>
-          </div>
-          <div className="grid md:grid-cols-2 gap-4">
-            {plans.map((plan, idx) => (
-              <div key={plan.id} className="bg-card border border-border rounded-3xl p-6 space-y-3">
-                <div>
-                  <Label>Nome</Label>
-                  <Input
-                    value={plan.name}
-                    onChange={(e) => {
-                      const next = [...plans];
-                      next[idx] = { ...plan, name: e.target.value };
-                      setPlans(next);
-                    }}
-                  />
+        <Tabs defaultValue="users">
+          <TabsList>
+            <TabsTrigger value="users"><UsersIcon className="w-4 h-4" /> Usuários</TabsTrigger>
+            <TabsTrigger value="plans"><Package className="w-4 h-4" /> Planos</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="users" className="mt-6">
+            <div className="bg-card border border-border rounded-3xl p-2 sm:p-4 overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Plano</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {profiles.map((u) => (
+                    <TableRow key={u.id}>
+                      <TableCell className="font-medium">{u.full_name || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">{u.email || "—"}</TableCell>
+                      <TableCell>
+                        <Select
+                          value={u.plan_id || ""}
+                          onValueChange={(v) => updateUserPlan(u.id, v)}
+                        >
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue placeholder="Selecionar" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {plans.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={u.status === "active" ? "default" : "secondary"}>
+                          {u.status === "active" ? "Ativo" : "Inativo"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant={u.status === "active" ? "outline" : "hero"}
+                          onClick={() => toggleUserStatus(u.id, u.status)}
+                        >
+                          {u.status === "active" ? "Desativar" : "Ativar"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {profiles.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                        Nenhum usuário cadastrado
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="plans" className="mt-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-2xl font-bold">Planos</h2>
+              <Button onClick={addPlan} variant="hero" size="sm"><Plus className="w-4 h-4" /> Novo plano</Button>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              {plans.map((plan, idx) => (
+                <div key={plan.id} className="bg-card border border-border rounded-3xl p-6 space-y-3">
+                  <div>
+                    <Label>Nome</Label>
+                    <Input
+                      value={plan.name}
+                      onChange={(e) => {
+                        const next = [...plans];
+                        next[idx] = { ...plan, name: e.target.value };
+                        setPlans(next);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label>Preço (R$)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={plan.price}
+                      onChange={(e) => {
+                        const next = [...plans];
+                        next[idx] = { ...plan, price: parseFloat(e.target.value) || 0 };
+                        setPlans(next);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label>Benefícios (um por linha)</Label>
+                    <textarea
+                      className="w-full min-h-[120px] rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                      value={plan.benefits.join("\n")}
+                      onChange={(e) => {
+                        const next = [...plans];
+                        next[idx] = { ...plan, benefits: e.target.value.split("\n").filter(Boolean) };
+                        setPlans(next);
+                      }}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={() => updatePlan(plan)} variant="hero" size="sm" className="flex-1">
+                      <Save className="w-4 h-4" /> Salvar
+                    </Button>
+                    <Button onClick={() => deletePlan(plan.id)} variant="outline" size="sm">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <Label>Preço (R$)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={plan.price}
-                    onChange={(e) => {
-                      const next = [...plans];
-                      next[idx] = { ...plan, price: parseFloat(e.target.value) || 0 };
-                      setPlans(next);
-                    }}
-                  />
-                </div>
-                <div>
-                  <Label>Benefícios (um por linha)</Label>
-                  <textarea
-                    className="w-full min-h-[120px] rounded-xl border border-input bg-background px-3 py-2 text-sm"
-                    value={plan.benefits.join("\n")}
-                    onChange={(e) => {
-                      const next = [...plans];
-                      next[idx] = { ...plan, benefits: e.target.value.split("\n").filter(Boolean) };
-                      setPlans(next);
-                    }}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={() => updatePlan(plan)} variant="hero" size="sm" className="flex-1">
-                    <Save className="w-4 h-4" /> Salvar
-                  </Button>
-                  <Button onClick={() => deletePlan(plan.id)} variant="outline" size="sm">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
