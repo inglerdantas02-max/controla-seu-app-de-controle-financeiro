@@ -232,9 +232,25 @@ const Dashboard = () => {
                     <p className={`font-display font-bold ${t.type === "income" ? "text-success" : "text-danger"}`}>
                       {t.type === "income" ? "+" : "-"}{formatBRL(Number(t.amount))}
                     </p>
-                    <Button size="icon" variant="ghost" onClick={() => deleteTx(t.id)} className="h-8 w-8 text-muted-foreground hover:text-danger">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-danger">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir movimentação?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta ação não pode ser desfeita. A movimentação será removida permanentemente.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteTx(t.id)}>Excluir</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </li>
               ))}
