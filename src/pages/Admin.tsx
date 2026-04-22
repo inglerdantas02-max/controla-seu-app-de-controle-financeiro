@@ -33,6 +33,7 @@ interface Profile {
   email: string | null;
   plan_id: string | null;
   status: string;
+  trial_end_date: string | null;
 }
 
 const Admin = () => {
@@ -99,15 +100,24 @@ const Admin = () => {
     }
   };
 
-  const toggleUserStatus = async (userId: string, current: string) => {
-    const next = current === "active" ? "inactive" : "active";
-    const { error } = await supabase.from("profiles").update({ status: next }).eq("id", userId);
+  const updateUserStatus = async (userId: string, next: string) => {
+    const patch: any = { status: next };
+    if (next === "active") {
+      patch.trial_end_date = null;
+    }
+    const { error } = await supabase.from("profiles").update(patch).eq("id", userId);
     if (error) toast.error(error.message);
     else {
-      toast.success(next === "active" ? "Usuário ativado" : "Usuário desativado");
+      toast.success("Status atualizado");
       load();
     }
   };
+
+  const statusLabel = (s: string) =>
+    s === "active" ? "Ativo" : s === "trial" ? "Em teste" : s === "expired" ? "Expirado" : s;
+
+  const statusVariant = (s: string): "default" | "secondary" | "destructive" =>
+    s === "active" ? "default" : s === "expired" ? "destructive" : "secondary";
 
   const formatBRL = (n: number) =>
     n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -171,18 +181,26 @@ const Admin = () => {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={u.status === "active" ? "default" : "secondary"}>
-                          {u.status === "active" ? "Ativo" : "Inativo"}
+                        <Badge variant={statusVariant(u.status)}>
+                          {statusLabel(u.status)}
                         </Badge>
+                        {u.status === "trial" && u.trial_end_date && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            até {new Date(u.trial_end_date).toLocaleDateString("pt-BR")}
+                          </p>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant={u.status === "active" ? "outline" : "hero"}
-                          onClick={() => toggleUserStatus(u.id, u.status)}
-                        >
-                          {u.status === "active" ? "Desativar" : "Ativar"}
-                        </Button>
+                        <Select value={u.status} onValueChange={(v) => updateUserStatus(u.id, v)}>
+                          <SelectTrigger className="w-[140px] ml-auto">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="trial">Em teste</SelectItem>
+                            <SelectItem value="active">Ativo</SelectItem>
+                            <SelectItem value="expired">Expirado</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                     </TableRow>
                   ))}
