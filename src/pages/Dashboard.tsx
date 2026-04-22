@@ -31,7 +31,7 @@ const Dashboard = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [loadingTxs, setLoadingTxs] = useState(true);
-  const [period, setPeriod] = useState<Period>("month");
+  const [period, setPeriod] = useState<Period>("today");
   const [fullName, setFullName] = useState<string>("");
 
   const loadTxs = useCallback(async () => {
