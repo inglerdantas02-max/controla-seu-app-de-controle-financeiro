@@ -1,12 +1,14 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { signOut } from "@/lib/auth";
-import { Wallet, LogOut, Shield, MessageCircle, TrendingUp, TrendingDown, Inbox, Trash2 } from "lucide-react";
-import { useEffect, useState, useCallback } from "react";
+import { Wallet, Settings, Shield, MessageCircle, TrendingUp, TrendingDown, Inbox, Trash2, FileText } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import ChatAssistant from "@/components/dashboard/ChatAssistant";
+import SettingsDialog from "@/components/dashboard/SettingsDialog";
+import ReportDialog from "@/components/dashboard/ReportDialog";
 import { toast } from "@/hooks/use-toast";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Tx {
   id: string;
@@ -17,6 +19,8 @@ interface Tx {
   occurred_at: string;
 }
 
+type Period = "today" | "week" | "month" | "all";
+
 const formatBRL = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -24,7 +28,11 @@ const Dashboard = () => {
   const { user, isAdmin, loading } = useAuth();
   const [txs, setTxs] = useState<Tx[]>([]);
   const [chatOpen, setChatOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [loadingTxs, setLoadingTxs] = useState(true);
+  const [period, setPeriod] = useState<Period>("month");
+  const [fullName, setFullName] = useState<string>("");
 
   const loadTxs = useCallback(async () => {
     if (!user) return;
@@ -41,7 +49,13 @@ const Dashboard = () => {
     loadTxs();
   }, [loadTxs]);
 
-  // Realtime updates
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle().then(({ data }) => {
+      setFullName(data?.full_name ?? "");
+    });
+  }, [user, settingsOpen]);
+
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -58,17 +72,36 @@ const Dashboard = () => {
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
   };
 
+  const { filteredTxs, periodLabel } = useMemo(() => {
+    const now = new Date();
+    let startDate: Date | null = null;
+    let label = "Todo período";
+    if (period === "today") {
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      label = "Hoje";
+    } else if (period === "week") {
+      startDate = new Date(now);
+      startDate.setDate(now.getDate() - 7);
+      label = "Últimos 7 dias";
+    } else if (period === "month") {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      label = "Este mês";
+    }
+    const filtered = startDate
+      ? txs.filter((t) => new Date(t.occurred_at) >= startDate!)
+      : txs;
+    return { filteredTxs: filtered, periodLabel: label };
+  }, [txs, period]);
+
   if (loading) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   if (!user) return <Navigate to="/auth" replace />;
 
-  const now = new Date();
-  const monthTxs = txs.filter((t) => {
-    const d = new Date(t.occurred_at);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  });
-  const income = monthTxs.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
-  const expense = monthTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
-  const balance = txs.reduce((s, t) => s + (t.type === "income" ? Number(t.amount) : -Number(t.amount)), 0);
+  const income = filteredTxs.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
+  const expense = filteredTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
+  const balance = income - expense;
+
+  const firstName = (fullName || user.email?.split("@")[0] || "").trim().split(" ")[0];
+  const capitalized = firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : "";
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -86,37 +119,55 @@ const Dashboard = () => {
                 <Link to="/admin"><Shield className="w-4 h-4" /> Admin</Link>
               </Button>
             )}
-            <Button onClick={() => signOut()} variant="ghost" size="sm">
-              <LogOut className="w-4 h-4" /> Sair
+            <Button onClick={() => setSettingsOpen(true)} variant="ghost" size="icon" aria-label="Configurações">
+              <Settings className="w-5 h-5" />
             </Button>
           </div>
         </div>
       </nav>
 
       <main className="container py-8">
-        <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">Olá! 👋</h1>
-        <p className="text-muted-foreground mb-8">
-          {txs.length === 0
-            ? "Toque no botão abaixo e comece registrando seu primeiro gasto ou ganho."
-            : "Aqui está o resumo das suas finanças."}
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+          <div>
+            <h1 className="font-display text-3xl md:text-4xl font-bold mb-1">
+              Olá{capitalized ? `, ${capitalized}` : ""} 👋
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              {filteredTxs.length === 0
+                ? "Toque no botão abaixo e comece registrando seu primeiro gasto ou ganho."
+                : `Resumo • ${periodLabel.toLowerCase()}`}
+            </p>
+          </div>
+          <Button onClick={() => setReportOpen(true)} variant="outline" size="sm" className="self-start sm:self-auto">
+            <FileText className="w-4 h-4" /> Gerar relatório
+          </Button>
+        </div>
+
+        <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)} className="mb-6">
+          <TabsList className="grid grid-cols-4 w-full max-w-md">
+            <TabsTrigger value="today">Hoje</TabsTrigger>
+            <TabsTrigger value="week">Semana</TabsTrigger>
+            <TabsTrigger value="month">Mês</TabsTrigger>
+            <TabsTrigger value="all">Tudo</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         <div className="grid md:grid-cols-3 gap-4 mb-8">
           <div className="bg-gradient-primary text-primary-foreground p-6 rounded-3xl shadow-glow">
-            <p className="text-sm opacity-80 mb-1">Saldo atual</p>
+            <p className="text-sm opacity-80 mb-1">Saldo {periodLabel.toLowerCase()}</p>
             <p className="font-display text-3xl font-bold">{formatBRL(balance)}</p>
           </div>
           <div className="bg-card border border-border p-6 rounded-3xl">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="w-4 h-4 text-success" />
-              <p className="text-sm text-muted-foreground">Entradas do mês</p>
+              <p className="text-sm text-muted-foreground">Entradas</p>
             </div>
             <p className="font-display text-3xl font-bold text-success">{formatBRL(income)}</p>
           </div>
           <div className="bg-card border border-border p-6 rounded-3xl">
             <div className="flex items-center gap-2 mb-1">
               <TrendingDown className="w-4 h-4 text-danger" />
-              <p className="text-sm text-muted-foreground">Saídas do mês</p>
+              <p className="text-sm text-muted-foreground">Saídas</p>
             </div>
             <p className="font-display text-3xl font-bold text-danger">{formatBRL(expense)}</p>
           </div>
@@ -126,10 +177,10 @@ const Dashboard = () => {
           <h2 className="font-display text-xl font-bold mb-4">Movimentações recentes</h2>
           {loadingTxs ? (
             <p className="text-muted-foreground text-sm">Carregando...</p>
-          ) : txs.length === 0 ? (
+          ) : filteredTxs.length === 0 ? (
             <div className="bg-card border border-dashed border-border rounded-3xl p-10 text-center">
               <Inbox className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-              <p className="font-semibold mb-1">Nenhuma movimentação ainda</p>
+              <p className="font-semibold mb-1">Nenhuma movimentação no período</p>
               <p className="text-sm text-muted-foreground mb-4">
                 Comece registrando um gasto ou ganho com o assistente.
               </p>
@@ -139,7 +190,7 @@ const Dashboard = () => {
             </div>
           ) : (
             <ul className="space-y-2">
-              {txs.slice(0, 20).map((t) => (
+              {filteredTxs.slice(0, 20).map((t) => (
                 <li
                   key={t.id}
                   className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between gap-3 animate-fade-in"
@@ -175,7 +226,6 @@ const Dashboard = () => {
         </section>
       </main>
 
-      {/* Floating button */}
       <button
         onClick={() => setChatOpen(true)}
         aria-label="Abrir assistente"
@@ -186,6 +236,8 @@ const Dashboard = () => {
       </button>
 
       <ChatAssistant open={chatOpen} onOpenChange={setChatOpen} onTransactionSaved={loadTxs} />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <ReportDialog open={reportOpen} onOpenChange={setReportOpen} txs={filteredTxs} periodLabel={periodLabel} />
     </div>
   );
 };
