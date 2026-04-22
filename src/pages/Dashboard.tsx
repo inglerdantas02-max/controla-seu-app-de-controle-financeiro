@@ -7,6 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import ChatAssistant from "@/components/dashboard/ChatAssistant";
 import SettingsDialog from "@/components/dashboard/SettingsDialog";
 import ReportDialog from "@/components/dashboard/ReportDialog";
+import TrialBanner from "@/components/dashboard/TrialBanner";
+import Paywall from "@/pages/Paywall";
+import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -37,6 +40,7 @@ const formatBRL = (n: number) =>
 
 const Dashboard = () => {
   const { user, isAdmin, loading } = useAuth();
+  const { status: subStatus, daysLeft, isBlocked, loading: subLoading } = useSubscription();
   const [txs, setTxs] = useState<Tx[]>([]);
   const [chatOpen, setChatOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -110,8 +114,9 @@ const Dashboard = () => {
     return { filteredTxs: filtered, periodLabel: label };
   }, [txs, period]);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+  if (loading || subLoading) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   if (!user) return <Navigate to="/auth" replace />;
+  if (isBlocked) return <Paywall />;
 
   const income = filteredTxs.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
   const expense = filteredTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
@@ -144,6 +149,7 @@ const Dashboard = () => {
       </nav>
 
       <main className="container py-8">
+        {!isAdmin && subStatus === "trial" && <TrialBanner daysLeft={daysLeft} />}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
           <div>
             <h1 className="font-display text-3xl md:text-4xl font-bold mb-1">
