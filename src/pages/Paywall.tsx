@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Wallet, Check, LogOut } from "lucide-react";
+import { Check, LogOut } from "lucide-react";
+import logo from "@/assets/logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -17,9 +18,7 @@ const Paywall = () => {
     <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
-            <Wallet className="w-5 h-5 text-primary-foreground" />
-          </div>
+          <img src={logo} alt="CONTROLA" className="w-10 h-10 rounded-xl shadow-glow" />
           <span className="font-display font-bold text-2xl">CONTROLA</span>
         </div>
 

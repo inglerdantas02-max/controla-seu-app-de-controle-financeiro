@@ -1,7 +1,8 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Wallet, Settings, Shield, MessageCircle, TrendingUp, TrendingDown, Inbox, Trash2, FileText } from "lucide-react";
+import { Settings, Shield, MessageCircle, TrendingUp, TrendingDown, Inbox, Trash2, FileText } from "lucide-react";
+import logo from "@/assets/logo.png";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import ChatAssistant from "@/components/dashboard/ChatAssistant";
@@ -130,9 +131,7 @@ const Dashboard = () => {
       <nav className="border-b border-border bg-background/80 backdrop-blur sticky top-0 z-30">
         <div className="container flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
-              <Wallet className="w-5 h-5 text-primary-foreground" />
-            </div>
+            <img src={logo} alt="CONTROLA" className="w-9 h-9 rounded-xl shadow-glow" />
             <span className="font-display font-bold text-xl">CONTROLA</span>
           </Link>
           <div className="flex items-center gap-2">
