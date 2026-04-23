@@ -24,6 +24,9 @@ export const useSubscription = (): SubInfo => {
       setLoading(false);
       return;
     }
+    // Server-side trial expiry check (replaces insecure client-side write).
+    await supabase.rpc("expire_trial_if_needed", { _user_id: user.id });
+
     const { data } = await supabase
       .from("profiles")
       .select("status, trial_end_date")
@@ -32,12 +35,7 @@ export const useSubscription = (): SubInfo => {
 
     if (data) {
       const end = data.trial_end_date ? new Date(data.trial_end_date) : null;
-      let st = (data.status as SubStatus) || "trial";
-      // Auto-expire on client side if trial passed and still marked as trial
-      if (st === "trial" && end && end.getTime() < Date.now()) {
-        st = "expired";
-        await supabase.from("profiles").update({ status: "expired" }).eq("id", user.id);
-      }
+      const st = (data.status as SubStatus) || "trial";
       setStatus(st);
       setTrialEndDate(end);
     }
