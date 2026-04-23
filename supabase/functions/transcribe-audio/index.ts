@@ -9,25 +9,39 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `Você é um transcritor de áudios curtos em português do Brasil sobre finanças pessoais (gastos, ganhos, contas).
+const SYSTEM_PROMPT = `Você é um transcritor especialista de áudios curtos em português do Brasil sobre finanças pessoais (gastos, ganhos, contas, salário, vendas).
 
 REGRAS OBRIGATÓRIAS:
-1. Transcreva exatamente o que foi falado, mas corrigindo erros de português, pronúncia e gramática.
-2. Primeira letra da frase SEMPRE maiúscula. Pontuação final correta (. ! ?).
-3. Converta valores falados para o formato "R$ N" (sem centavos quando inteiros). Exemplos:
-   - "trinta real" / "trinta reais" -> "R$ 30"
-   - "duzentos" / "dusento" -> "R$ 200"
-   - "cinquenta conto" -> "R$ 50"
-   - "mil e quinhentos" -> "R$ 1500"
-   - "vinte e cinco e cinquenta" -> "R$ 25,50"
-4. Corrija palavras mal pronunciadas para o termo correto (ex: "almoco" -> "almoço", "gasolinha" -> "gasolina", "uber" mantém).
-5. Mantenha o sentido original. NÃO invente informações.
-6. Responda APENAS com a frase transcrita e corrigida. Sem aspas, sem explicações, sem prefixos.
+1. Transcreva o que foi falado CORRIGINDO erros de pronúncia, gramática e português coloquial.
+2. Primeira letra MAIÚSCULA. Pontuação final correta (. ! ?).
+3. Converta valores falados para "R$ N" (sem centavos quando inteiros):
+   - "trinta real" / "trinta reais" / "trinta conto" / "trinta pila" -> "R$ 30"
+   - "duzentos" / "dusento" / "duzento" -> "R$ 200"
+   - "mil e quinhentos" / "um e meio" (em contexto de mil) -> "R$ 1500"
+   - "vinte e cinco e cinquenta" / "vinte e cinco com cinquenta" -> "R$ 25,50"
+   - "cento e vinte" -> "R$ 120"
+   - "dois mil" -> "R$ 2000"
+4. Corrija palavras mal pronunciadas e gírias para o termo correto:
+   - "almoco" -> "almoço"; "gasolinha" -> "gasolina"; "merca" / "mercadinho" -> "mercado"
+   - "uber", "ifood", "pix" mantém em minúsculo dentro da frase mas capitalize "Uber", "iFood", "Pix" quando forem nomes próprios
+   - "salario" -> "salário"; "frila" / "freela" -> "freela"
+   - "rangu" / "boia" -> "comida"; "trampo" -> "trabalho"
+5. Identifique a INTENÇÃO financeira e use o verbo correto:
+   - Saída: "gastei", "paguei", "comprei", "torrei" -> mantenha o verbo natural
+   - Entrada: "ganhei", "recebi", "vendi", "caiu", "entrou", "pingou" -> normalize para "Ganhei" ou "Recebi"
+6. Mantenha o sentido original. NÃO invente valores, datas ou categorias que não foram ditas.
+7. Se o áudio estiver inaudível, ininteligível ou for apenas ruído, responda exatamente: INAUDIVEL
+8. Responda APENAS com a frase corrigida. SEM aspas, SEM explicações, SEM prefixos como "Transcrição:".
 
 Exemplos:
-Áudio: "gastei trinta real no almoco"  -> Gastei R$ 30 no almoço.
-Áudio: "ganhei dusento hoje"            -> Ganhei R$ 200 hoje.
-Áudio: "paguei cinquenta na gasolinha"  -> Paguei R$ 50 na gasolina.`;
+Áudio: "gastei trinta real no almoco"          -> Gastei R$ 30 no almoço.
+Áudio: "ganhei dusento hoje"                    -> Ganhei R$ 200 hoje.
+Áudio: "paguei cinquenta na gasolinha"          -> Paguei R$ 50 na gasolina.
+Áudio: "recebi meu salario de dois mil"         -> Recebi meu salário de R$ 2000.
+Áudio: "vendi um produto por cento e cinquenta" -> Vendi um produto por R$ 150.
+Áudio: "torrei vinte conto no ifood"            -> Gastei R$ 20 no iFood.
+Áudio: "pinguei um pix de quinhentos"           -> Recebi um Pix de R$ 500.
+Áudio: "frila de trezentos"                     -> Recebi R$ 300 de freela.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -110,8 +124,8 @@ Deno.serve(async (req) => {
       text = text.charAt(0).toUpperCase() + text.slice(1);
     }
 
-    if (!text) {
-      return new Response(JSON.stringify({ error: "Não consegui entender. Tente falar novamente." }), {
+    if (!text || /^INAUDIVEL\.?$/i.test(text)) {
+      return new Response(JSON.stringify({ error: "Não entendi muito bem, pode repetir?" }), {
         status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

@@ -81,10 +81,10 @@ const ChatAssistant = ({ open, onOpenChange, onTransactionSaved }: Props) => {
     }, 250);
   };
 
-  const send = async () => {
-    const text = input.trim();
+  const send = async (overrideText?: string) => {
+    const text = (overrideText ?? input).trim();
     if (!text || loading) return;
-    setInput("");
+    if (!overrideText) setInput("");
     const userMsg: Msg = { id: crypto.randomUUID(), role: "user", content: text };
     setMessages((p) => [...p, userMsg]);
     setLoading(true);
@@ -206,7 +206,7 @@ function VoiceInputRow({
 }: {
   input: string;
   setInput: (v: string) => void;
-  send: () => void;
+  send: (overrideText?: string) => void;
   loading: boolean;
   onFocus?: () => void;
 }) {
@@ -227,10 +227,11 @@ function VoiceInputRow({
         if (data?.error) throw new Error(data.error);
         const text: string = data?.text || "";
         if (!text) {
-          toast({ title: "Áudio", description: "Não consegui entender. Tente falar novamente.", variant: "destructive" });
+          toast({ title: "Áudio", description: "Não entendi muito bem, pode repetir?", variant: "destructive" });
           return;
         }
-        setInput(text);
+        // Auto-envia a transcrição corrigida — o assistente confirma com botões antes de salvar
+        send(text);
       } catch (e: any) {
         toast({ title: "Erro", description: e.message || "Falha ao transcrever", variant: "destructive" });
       } finally {
@@ -280,7 +281,7 @@ function VoiceInputRow({
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
+          onKeyDown={(e) => { if (e.key === "Enter") send(); }}
           onFocus={onFocus}
           placeholder={transcribing ? "Transcrevendo..." : "Ex: Gastei 30 com almoço"}
           disabled={busy}
@@ -319,7 +320,7 @@ function VoiceInputRow({
           <Square className="w-4 h-4 fill-current" />
         </Button>
       ) : (
-        <Button onClick={send} disabled={busy || !input.trim()} size="icon" variant="hero" className="shrink-0">
+        <Button onClick={() => send()} disabled={busy || !input.trim()} size="icon" variant="hero" className="shrink-0">
           <Send className="w-4 h-4" />
         </Button>
       )}
