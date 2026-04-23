@@ -49,6 +49,9 @@ const Dashboard = () => {
   const [loadingTxs, setLoadingTxs] = useState(true);
   const [period, setPeriod] = useState<Period>("today");
   const [fullName, setFullName] = useState<string>("");
+  const [insight, setInsight] = useState<string | null>(null);
+  const [insightSeen, setInsightSeen] = useState<boolean>(false);
+  const [pendingInsightForChat, setPendingInsightForChat] = useState<string | null>(null);
 
   const loadTxs = useCallback(async () => {
     if (!user) return;
@@ -82,6 +85,35 @@ const Dashboard = () => {
       supabase.removeChannel(channel);
     };
   }, [user, loadTxs]);
+
+  // Buscar insight automático (1x ao montar e quando txs mudam significativamente)
+  const fetchInsight = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase.functions.invoke("generate-insights", { body: {} });
+      const text: string | null = data?.insight?.text ?? null;
+      setInsight((prev) => {
+        if (text !== prev) setInsightSeen(false);
+        return text;
+      });
+    } catch (e) {
+      // silencioso
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!loadingTxs) fetchInsight();
+  }, [loadingTxs, txs.length, fetchInsight]);
+
+  const openChatWithInsight = () => {
+    if (insight && !insightSeen) {
+      setPendingInsightForChat(insight);
+      setInsightSeen(true);
+    } else {
+      setPendingInsightForChat(null);
+    }
+    setChatOpen(true);
+  };
 
   const deleteTx = async (id: string) => {
     setTxs((prev) => prev.filter((t) => t.id !== id));
@@ -206,7 +238,7 @@ const Dashboard = () => {
               <p className="text-sm text-muted-foreground mb-4">
                 Comece registrando um gasto ou ganho com o assistente.
               </p>
-              <Button variant="hero" onClick={() => setChatOpen(true)}>
+              <Button variant="hero" onClick={openChatWithInsight}>
                 <MessageCircle className="w-4 h-4" /> Abrir assistente
               </Button>
             </div>
@@ -265,15 +297,25 @@ const Dashboard = () => {
       </main>
 
       <button
-        onClick={() => setChatOpen(true)}
-        aria-label="Abrir assistente"
+        onClick={openChatWithInsight}
+        aria-label={insight && !insightSeen ? "Novo insight do assistente" : "Abrir assistente"}
         className="fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full bg-gradient-primary text-primary-foreground shadow-glow flex items-center justify-center hover:scale-110 transition-transform animate-pulse-glow"
       >
         <MessageCircle className="w-7 h-7" />
         <span className="absolute inset-0 rounded-full bg-primary/40 animate-ping -z-10" />
+        {insight && !insightSeen && (
+          <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1.5 rounded-full bg-danger text-danger-foreground text-[11px] font-bold flex items-center justify-center border-2 border-background shadow-lg animate-bounce">
+            1
+          </span>
+        )}
       </button>
 
-      <ChatAssistant open={chatOpen} onOpenChange={setChatOpen} onTransactionSaved={loadTxs} />
+      <ChatAssistant
+        open={chatOpen}
+        onOpenChange={(o) => { setChatOpen(o); if (!o) setPendingInsightForChat(null); }}
+        onTransactionSaved={loadTxs}
+        initialAssistantMessage={pendingInsightForChat}
+      />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <ReportDialog open={reportOpen} onOpenChange={setReportOpen} txs={filteredTxs} periodLabel={periodLabel} />
     </div>

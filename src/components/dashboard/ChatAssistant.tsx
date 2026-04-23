@@ -30,17 +30,30 @@ interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onTransactionSaved: () => void;
+  initialAssistantMessage?: string | null;
 }
 
-const ChatAssistant = ({ open, onOpenChange, onTransactionSaved }: Props) => {
+const ChatAssistant = ({ open, onOpenChange, onTransactionSaved, initialAssistantMessage }: Props) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([
     {
       id: "welcome",
       role: "assistant",
-      content: "Olá! 👋 Eu sou seu assistente. Me conte algo como:\n\n• \"Gastei 30 com almoço\"\n• \"Ganhei 200 hoje\"\n• \"Paguei 50 de uber\"",
+      content: "Olá! 👋 Eu sou seu assistente. Me conte algo como:\n\n• \"Gastei 30 com almoço\"\n• \"Ganhei 200 hoje\"\n• \"Quanto gastei essa semana?\"\n• \"Quanto sobrou pra mim hoje?\"",
     },
   ]);
+
+  // Injeta insight como mensagem inicial quando o chat abre
+  useEffect(() => {
+    if (!open || !initialAssistantMessage) return;
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === "insight-injected" && m.content === initialAssistantMessage)) return prev;
+      return [
+        ...prev,
+        { id: "insight-injected", role: "assistant", content: initialAssistantMessage },
+      ];
+    });
+  }, [open, initialAssistantMessage]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
