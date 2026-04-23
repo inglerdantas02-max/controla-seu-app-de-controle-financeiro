@@ -320,7 +320,7 @@ function VoiceInputRow({
           <Square className="w-4 h-4 fill-current" />
         </Button>
       ) : (
-        <Button onClick={send} disabled={busy || !input.trim()} size="icon" variant="hero" className="shrink-0">
+        <Button onClick={() => send()} disabled={busy || !input.trim()} size="icon" variant="hero" className="shrink-0">
           <Send className="w-4 h-4" />
         </Button>
       )}
