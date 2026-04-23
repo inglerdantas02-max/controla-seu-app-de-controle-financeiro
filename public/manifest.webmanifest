@@ -1,0 +1,26 @@
+{
+  "name": "CONTROLA",
+  "short_name": "CONTROLA",
+  "description": "Seu dinheiro. Mais controle. Mais liberdade.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#6C63FF",
+  "theme_color": "#6C63FF",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
