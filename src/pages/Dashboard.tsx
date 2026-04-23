@@ -86,6 +86,35 @@ const Dashboard = () => {
     };
   }, [user, loadTxs]);
 
+  // Buscar insight automático (1x ao montar e quando txs mudam significativamente)
+  const fetchInsight = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase.functions.invoke("generate-insights", { body: {} });
+      const text: string | null = data?.insight?.text ?? null;
+      setInsight((prev) => {
+        if (text !== prev) setInsightSeen(false);
+        return text;
+      });
+    } catch (e) {
+      // silencioso
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!loadingTxs) fetchInsight();
+  }, [loadingTxs, txs.length, fetchInsight]);
+
+  const openChatWithInsight = () => {
+    if (insight && !insightSeen) {
+      setPendingInsightForChat(insight);
+      setInsightSeen(true);
+    } else {
+      setPendingInsightForChat(null);
+    }
+    setChatOpen(true);
+  };
+
   const deleteTx = async (id: string) => {
     setTxs((prev) => prev.filter((t) => t.id !== id));
     const { error } = await supabase.from("transactions").delete().eq("id", id);
