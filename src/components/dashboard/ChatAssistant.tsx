@@ -227,10 +227,11 @@ function VoiceInputRow({
         if (data?.error) throw new Error(data.error);
         const text: string = data?.text || "";
         if (!text) {
-          toast({ title: "Áudio", description: "Não consegui entender. Tente falar novamente.", variant: "destructive" });
+          toast({ title: "Áudio", description: "Não entendi muito bem, pode repetir?", variant: "destructive" });
           return;
         }
-        setInput(text);
+        // Auto-envia a transcrição corrigida — o assistente confirma com botões antes de salvar
+        send(text);
       } catch (e: any) {
         toast({ title: "Erro", description: e.message || "Falha ao transcrever", variant: "destructive" });
       } finally {
