@@ -3,11 +3,16 @@
 // Input:  { audio: string (base64, no data: prefix), mimeType?: string }
 // Output: { text: string }
 
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+// Maximum base64 audio payload size (~6MB base64 ≈ 4.5MB raw audio)
+const MAX_AUDIO_BASE64_BYTES = 6_000_000;
 
 const SYSTEM_PROMPT = `Você é um TRANSCRITOR ESPECIALISTA de áudios curtos em PORTUGUÊS DO BRASIL (pt-BR) sobre finanças pessoais. NUNCA traduza para inglês ou outro idioma.
 
@@ -56,18 +61,46 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Auth: validate JWT before doing any work
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Não autenticado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: userData, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !userData?.user) {
+      return new Response(JSON.stringify({ error: "Não autenticado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { audio, mimeType } = await req.json();
     if (!audio || typeof audio !== "string") {
-      return new Response(JSON.stringify({ error: "Missing audio" }), {
+      return new Response(JSON.stringify({ error: "Áudio inválido" }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (audio.length > MAX_AUDIO_BASE64_BYTES) {
+      return new Response(JSON.stringify({ error: "Áudio muito longo. Grave um trecho menor." }), {
+        status: 413,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
+      console.error("transcribe-audio: missing AI gateway credential");
       return new Response(
-        JSON.stringify({ error: "LOVABLE_API_KEY não configurada" }),
+        JSON.stringify({ error: "Erro interno. Tente novamente." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -142,7 +175,7 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     console.error("transcribe-audio error", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }), {
+    return new Response(JSON.stringify({ error: "Erro interno. Tente novamente." }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
