@@ -281,7 +281,7 @@ function VoiceInputRow({
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
+          onKeyDown={(e) => { if (e.key === "Enter") send(); }}
           onFocus={onFocus}
           placeholder={transcribing ? "Transcrevendo..." : "Ex: Gastei 30 com almoço"}
           disabled={busy}
