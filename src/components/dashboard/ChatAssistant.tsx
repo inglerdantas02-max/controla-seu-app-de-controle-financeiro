@@ -240,12 +240,11 @@ function VoiceInputRow({
   });
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (loading || transcribing) return;
-    e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    if (loading || transcribing || ptt.starting || ptt.recording) return;
+    try { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); } catch {}
     startXRef.current = e.clientX;
     setCancelHint(false);
-    ptt.start();
+    void ptt.start();
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
