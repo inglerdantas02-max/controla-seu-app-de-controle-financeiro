@@ -210,27 +210,6 @@ function VoiceInputRow({
   loading: boolean;
   onFocus?: () => void;
 }) {
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default ChatAssistant;
-
-function VoiceInputRow({
-  input,
-  setInput,
-  send,
-  loading,
-  onFocus,
-}: {
-  input: string;
-  setInput: (v: string) => void;
-  send: () => void;
-  loading: boolean;
-  onFocus?: () => void;
-}) {
   const [transcribing, setTranscribing] = useState(false);
   const [cancelHint, setCancelHint] = useState(false);
   const startXRef = useRef<number | null>(null);
