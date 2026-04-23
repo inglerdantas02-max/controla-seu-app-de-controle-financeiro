@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split("T")[0];
 
     const tools = [
       {
@@ -200,55 +200,105 @@ Para relatórios: SEMPRE chame get_financial_report primeiro para obter os dados
 });
 
 async function buildReport(supabase: any, userId: string, args: any) {
-  const now = new Date();
-  let start: Date;
-  let end: Date;
+  // Fuso horário do Brasil (UTC-3) — converte "agora UTC" para "agora no BR"
+  const TZ_OFFSET_MS = -3 * 60 * 60 * 1000; // BRT
+  const nowBR = new Date(Date.now() + TZ_OFFSET_MS);
+
+  // Constrói intervalo [start, end] em horário BR e converte para UTC ISO
+  const dayRangeBR = (yyyy: number, mm: number, dd: number) => {
+    // 00:00 BR = 03:00 UTC do mesmo dia ; 23:59:59.999 BR = 02:59:59.999 UTC do dia seguinte
+    const startUTC = new Date(Date.UTC(yyyy, mm, dd, 0, 0, 0) - TZ_OFFSET_MS);
+    const endUTC = new Date(Date.UTC(yyyy, mm, dd, 23, 59, 59, 999) - TZ_OFFSET_MS);
+    return { startUTC, endUTC };
+  };
+
+  const parseYMD = (s: string) => {
+    const [y, m, d] = s.split("-").map(Number);
+    return { y, m: m - 1, d };
+  };
+
+  let startISO: string;
+  let endISO: string;
   let label = "";
 
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-  const endOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+  const yBR = nowBR.getUTCFullYear();
+  const mBR = nowBR.getUTCMonth();
+  const dBR = nowBR.getUTCDate();
 
   switch (args.period) {
-    case "today":
-      start = startOfDay(now); end = endOfDay(now); label = "hoje"; break;
+    case "today": {
+      const r = dayRangeBR(yBR, mBR, dBR);
+      startISO = r.startUTC.toISOString(); endISO = r.endUTC.toISOString();
+      label = "hoje"; break;
+    }
     case "yesterday": {
-      const y = new Date(now); y.setDate(y.getDate() - 1);
-      start = startOfDay(y); end = endOfDay(y); label = "ontem"; break;
+      const y = new Date(Date.UTC(yBR, mBR, dBR));
+      y.setUTCDate(y.getUTCDate() - 1);
+      const r = dayRangeBR(y.getUTCFullYear(), y.getUTCMonth(), y.getUTCDate());
+      startISO = r.startUTC.toISOString(); endISO = r.endUTC.toISOString();
+      label = "ontem"; break;
     }
     case "week": {
-      const w = new Date(now); w.setDate(w.getDate() - 7);
-      start = startOfDay(w); end = endOfDay(now); label = "últimos 7 dias"; break;
+      const w = new Date(Date.UTC(yBR, mBR, dBR));
+      w.setUTCDate(w.getUTCDate() - 6); // últimos 7 dias incluindo hoje
+      const s = dayRangeBR(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate()).startUTC;
+      const e = dayRangeBR(yBR, mBR, dBR).endUTC;
+      startISO = s.toISOString(); endISO = e.toISOString();
+      label = "últimos 7 dias"; break;
     }
     case "month": {
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-      end = endOfDay(now); label = "este mês"; break;
+      const s = dayRangeBR(yBR, mBR, 1).startUTC;
+      const e = dayRangeBR(yBR, mBR, dBR).endUTC;
+      startISO = s.toISOString(); endISO = e.toISOString();
+      label = "este mês"; break;
     }
     case "custom": {
-      const s = args.start_date ? new Date(args.start_date + "T00:00:00") : now;
-      const e = args.end_date ? new Date(args.end_date + "T23:59:59") : endOfDay(s);
-      start = startOfDay(s); end = e;
+      const sParts = args.start_date ? parseYMD(args.start_date) : { y: yBR, m: mBR, d: dBR };
+      const eParts = args.end_date ? parseYMD(args.end_date) : sParts;
+      startISO = dayRangeBR(sParts.y, sParts.m, sParts.d).startUTC.toISOString();
+      endISO = dayRangeBR(eParts.y, eParts.m, eParts.d).endUTC.toISOString();
       label = args.end_date && args.end_date !== args.start_date
         ? `${args.start_date} a ${args.end_date}`
         : (args.start_date ?? "data informada");
       break;
     }
-    default:
-      start = startOfDay(now); end = endOfDay(now); label = "hoje";
+    default: {
+      const r = dayRangeBR(yBR, mBR, dBR);
+      startISO = r.startUTC.toISOString(); endISO = r.endUTC.toISOString();
+      label = "hoje";
+    }
   }
 
+  console.log("[report] period:", args.period, "range:", startISO, "→", endISO);
+
+  // Busca COMPLETA — sem limite (até 10k transações por período)
   const { data: txs, error } = await supabase
     .from("transactions")
     .select("type, amount, category, occurred_at")
     .eq("user_id", userId)
-    .gte("occurred_at", start.toISOString())
-    .lte("occurred_at", end.toISOString());
+    .gte("occurred_at", startISO)
+    .lte("occurred_at", endISO)
+    .order("occurred_at", { ascending: true })
+    .limit(10000);
 
   if (error) {
+    console.error("[report] db error:", error);
     return { error: error.message, period_label: label };
   }
 
+  console.log("[report] rows:", txs?.length ?? 0);
+
   if (!txs || txs.length === 0) {
-    return { period_label: label, count: 0, income: 0, expense: 0, balance: 0, top_category: null, by_category: {} };
+    return {
+      period_label: label,
+      count: 0,
+      income: 0,
+      expense: 0,
+      balance: 0,
+      top_category: null,
+      by_category: {},
+      message: "Você não teve movimentações nesse período.",
+    };
   }
 
   let income = 0, expense = 0;
