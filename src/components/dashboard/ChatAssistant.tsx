@@ -254,7 +254,8 @@ function VoiceInputRow({
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
-    if (!ptt.recording) return;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId); } catch {}
+    if (!ptt.recording && !ptt.starting) return;
     const start = startXRef.current;
     startXRef.current = null;
     const shouldCancel = start != null && e.clientX - start < -CANCEL_THRESHOLD;
@@ -266,7 +267,7 @@ function VoiceInputRow({
   const onPointerCancel = () => {
     startXRef.current = null;
     setCancelHint(false);
-    if (ptt.recording) ptt.cancel();
+    if (ptt.recording || ptt.starting) ptt.cancel();
   };
 
   const busy = loading || transcribing;
