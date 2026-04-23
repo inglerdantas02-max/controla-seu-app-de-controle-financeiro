@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
         type: "function",
         function: {
           name: "get_financial_report",
-          description: "Consulta as transações reais do usuário e gera um relatório para um período (hoje, ontem, semana, mês ou data específica). Use sempre que o usuário pedir resumo, relatório, ou perguntar quanto gastou/recebeu.",
+          description: "Consulta as transações reais do usuário e gera um relatório para um período (hoje, ontem, semana, mês ou data específica). Pode filtrar por tipo (entrada/saída) e/ou categoria. Use sempre que o usuário pedir resumo, relatório, ou perguntar quanto gastou/recebeu (ex: 'quanto gastei com Uber esse mês', 'quanto recebi de salário').",
           parameters: {
             type: "object",
             properties: {
@@ -69,6 +69,15 @@ Deno.serve(async (req) => {
               },
               start_date: { type: "string", description: "YYYY-MM-DD (obrigatório se period=custom)" },
               end_date: { type: "string", description: "YYYY-MM-DD (opcional, default = start_date)" },
+              type_filter: {
+                type: "string",
+                enum: ["income", "expense", "any"],
+                description: "Filtrar apenas entradas, saídas, ou ambas. Default: any",
+              },
+              category_filter: {
+                type: "string",
+                description: "Filtra por categoria (case-insensitive, busca parcial). Ex: 'Uber', 'Salário', 'Vendas'. Use para perguntas como 'quanto gastei com Uber' ou 'quanto recebi de salário'.",
+              },
             },
             required: ["period"],
             additionalProperties: false,
@@ -95,13 +104,38 @@ Deno.serve(async (req) => {
         role: "system",
         content: `Você é um assistente financeiro brasileiro do app CONTROLA. Hoje é ${today}.
 Você tem 3 ferramentas:
-1) register_transaction → quando o usuário descreve um gasto/ganho ("gastei 30 com almoço", "recebi 200").
-2) get_financial_report → quando o usuário pede relatório, resumo, ou pergunta valores ("quanto gastei hoje", "resumo da semana", "relatório do dia 15").
+1) register_transaction → quando o usuário descreve um gasto/ganho ("gastei 30 com almoço", "recebi 200 de salário", "vendi 150 reais").
+2) get_financial_report → quando o usuário pede relatório, resumo, ou pergunta valores ("quanto gastei hoje", "resumo da semana", "quanto gastei com Uber esse mês", "quanto recebi de salário", "quanto ganhei com vendas").
 3) chat_reply → para conversa geral.
 
-Categorias comuns: Alimentação, Transporte, Lazer, Saúde, Moradia, Trabalho, Salário, Investimento, Educação, Outros.
+CATEGORIZAÇÃO AUTOMÁTICA — sempre preencha 'category' ao registrar:
 
-Para relatórios: SEMPRE chame get_financial_report primeiro para obter os dados reais, depois responda ao usuário com base no resultado, formatando de forma amigável com emojis (💰 entradas, 💸 saídas, 📉 saldo) e destacando a categoria com maior gasto se houver. Se não houver dados, diga: "Você ainda não tem movimentações nesse período."`,
+📤 SAÍDAS (expense) — categorias padrão:
+- Transporte → Uber, 99, taxi, gasolina, combustível, ônibus, metrô, estacionamento, pedágio
+- Alimentação → almoço, jantar, café, lanche, restaurante, ifood, mercado, padaria, supermercado
+- Moradia → aluguel, condomínio, luz, água, gás, internet, IPTU
+- Lazer → cinema, show, viagem, passeio, bar, balada, streaming, jogo
+- Saúde → farmácia, remédio, médico, plano de saúde, academia
+- Educação → curso, faculdade, livro, escola, material
+- Compras → roupa, eletrônico, presente
+- Outros → quando não se encaixar
+
+📥 ENTRADAS (income) — categorias padrão:
+- Salário → salário, holerite, pagamento mensal do trabalho
+- Vendas → vendi, venda de produto/serviço próprio
+- Freelance → freela, projeto, bico, trabalho extra pontual
+- Transferências → pix recebido, transferência, devolução de empréstimo
+- Investimentos → rendimento, dividendo, juros, resgate
+- Outros ganhos → presente recebido, prêmio, reembolso, indenização
+
+Se o usuário usar uma categoria personalizada (ex: "categoria pets"), respeite e use exatamente como ele disse.
+
+Para relatórios:
+- SEMPRE chame get_financial_report PRIMEIRO para obter dados reais antes de responder.
+- Se o usuário perguntar sobre uma categoria específica (ex: "quanto gastei com Uber", "quanto recebi de salário"), use 'category_filter' E 'type_filter' ('expense' para gastos, 'income' para receitas).
+- Formate a resposta com emojis (💰/📥 entradas, 💸/📤 saídas, 📉 saldo, 🏆 categoria top).
+- Para receitas, use emojis temáticos: 💼 Salário, 🛒 Vendas, 💻 Freelance, 🔄 Transferências, 📈 Investimentos.
+- Se não houver dados, diga: "Você não teve movimentações nesse período."`,
       },
       { role: "user", content: message },
     ];
@@ -288,39 +322,65 @@ async function buildReport(supabase: any, userId: string, args: any) {
 
   console.log("[report] rows:", txs?.length ?? 0);
 
-  if (!txs || txs.length === 0) {
+  // Filtros adicionais
+  const typeFilter: "income" | "expense" | "any" = args.type_filter || "any";
+  const categoryFilter: string | undefined = args.category_filter?.trim();
+
+  let filtered = txs || [];
+  if (typeFilter !== "any") filtered = filtered.filter((t: any) => t.type === typeFilter);
+  if (categoryFilter) {
+    const needle = categoryFilter.toLowerCase();
+    filtered = filtered.filter((t: any) => (t.category || "").toLowerCase().includes(needle));
+  }
+
+  if (!filtered || filtered.length === 0) {
     return {
       period_label: label,
+      type_filter: typeFilter,
+      category_filter: categoryFilter || null,
       count: 0,
       income: 0,
       expense: 0,
       balance: 0,
-      top_category: null,
-      by_category: {},
+      top_expense_category: null,
+      top_income_category: null,
+      expense_by_category: {},
+      income_by_category: {},
       message: "Você não teve movimentações nesse período.",
     };
   }
 
   let income = 0, expense = 0;
-  const byCat: Record<string, number> = {};
-  for (const t of txs) {
+  const expenseByCat: Record<string, number> = {};
+  const incomeByCat: Record<string, number> = {};
+  for (const t of filtered) {
     const amt = Number(t.amount);
-    if (t.type === "income") income += amt;
-    else {
+    const cat = t.category || "Outros";
+    if (t.type === "income") {
+      income += amt;
+      incomeByCat[cat] = (incomeByCat[cat] || 0) + amt;
+    } else {
       expense += amt;
-      const c = t.category || "Outros";
-      byCat[c] = (byCat[c] || 0) + amt;
+      expenseByCat[cat] = (expenseByCat[cat] || 0) + amt;
     }
   }
-  const top = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0];
+  const topExp = Object.entries(expenseByCat).sort((a, b) => b[1] - a[1])[0];
+  const topInc = Object.entries(incomeByCat).sort((a, b) => b[1] - a[1])[0];
+  const round = (n: number) => Number(n.toFixed(2));
+  const mapRound = (o: Record<string, number>) =>
+    Object.fromEntries(Object.entries(o).map(([k, v]) => [k, round(v)]));
 
   return {
     period_label: label,
-    count: txs.length,
-    income: Number(income.toFixed(2)),
-    expense: Number(expense.toFixed(2)),
-    balance: Number((income - expense).toFixed(2)),
-    top_category: top ? { name: top[0], amount: Number(top[1].toFixed(2)) } : null,
-    by_category: Object.fromEntries(Object.entries(byCat).map(([k, v]) => [k, Number(v.toFixed(2))])),
+    type_filter: typeFilter,
+    category_filter: categoryFilter || null,
+    count: filtered.length,
+    income: round(income),
+    expense: round(expense),
+    balance: round(income - expense),
+    top_expense_category: topExp ? { name: topExp[0], amount: round(topExp[1]) } : null,
+    top_income_category: topInc ? { name: topInc[0], amount: round(topInc[1]) } : null,
+    expense_by_category: mapRound(expenseByCat),
+    income_by_category: mapRound(incomeByCat),
   };
 }
