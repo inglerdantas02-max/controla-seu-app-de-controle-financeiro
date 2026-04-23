@@ -51,8 +51,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    const mt = mimeType || "audio/webm";
-    const dataUrl = `data:${mt};base64,${audio}`;
+    const mt = (mimeType || "audio/webm").toLowerCase();
+    const format = mt.includes("mp4") || mt.includes("m4a") || mt.includes("aac")
+      ? "mp4"
+      : mt.includes("ogg")
+      ? "ogg"
+      : mt.includes("wav")
+      ? "wav"
+      : "webm";
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -68,7 +74,8 @@ Deno.serve(async (req) => {
             role: "user",
             content: [
               { type: "text", text: "Transcreva e corrija o áudio a seguir conforme as regras." },
-              { type: "input_audio", input_audio: { data: dataUrl, format: mt.includes("mp4") ? "mp4" : mt.includes("ogg") ? "ogg" : mt.includes("wav") ? "wav" : "webm" } },
+              // IMPORTANT: data must be raw base64 (NO "data:...;base64," prefix)
+              { type: "input_audio", input_audio: { data: audio, format } },
             ],
           },
         ],
