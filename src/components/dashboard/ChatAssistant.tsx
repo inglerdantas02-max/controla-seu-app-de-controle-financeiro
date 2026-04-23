@@ -206,6 +206,27 @@ function VoiceInputRow({
 }: {
   input: string;
   setInput: (v: string) => void;
+  send: (overrideText?: string) => void;
+  loading: boolean;
+  onFocus?: () => void;
+}) {
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default ChatAssistant;
+
+function VoiceInputRow({
+  input,
+  setInput,
+  send,
+  loading,
+  onFocus,
+}: {
+  input: string;
+  setInput: (v: string) => void;
   send: () => void;
   loading: boolean;
   onFocus?: () => void;
