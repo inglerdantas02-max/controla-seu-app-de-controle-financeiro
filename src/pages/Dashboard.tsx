@@ -297,15 +297,25 @@ const Dashboard = () => {
       </main>
 
       <button
-        onClick={() => setChatOpen(true)}
-        aria-label="Abrir assistente"
+        onClick={openChatWithInsight}
+        aria-label={insight && !insightSeen ? "Novo insight do assistente" : "Abrir assistente"}
         className="fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full bg-gradient-primary text-primary-foreground shadow-glow flex items-center justify-center hover:scale-110 transition-transform animate-pulse-glow"
       >
         <MessageCircle className="w-7 h-7" />
         <span className="absolute inset-0 rounded-full bg-primary/40 animate-ping -z-10" />
+        {insight && !insightSeen && (
+          <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1.5 rounded-full bg-danger text-danger-foreground text-[11px] font-bold flex items-center justify-center border-2 border-background shadow-lg animate-bounce">
+            1
+          </span>
+        )}
       </button>
 
-      <ChatAssistant open={chatOpen} onOpenChange={setChatOpen} onTransactionSaved={loadTxs} />
+      <ChatAssistant
+        open={chatOpen}
+        onOpenChange={(o) => { setChatOpen(o); if (!o) setPendingInsightForChat(null); }}
+        onTransactionSaved={loadTxs}
+        initialAssistantMessage={pendingInsightForChat}
+      />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <ReportDialog open={reportOpen} onOpenChange={setReportOpen} txs={filteredTxs} periodLabel={periodLabel} />
     </div>
