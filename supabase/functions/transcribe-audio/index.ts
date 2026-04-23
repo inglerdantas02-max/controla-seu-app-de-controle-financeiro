@@ -9,39 +9,46 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `Você é um transcritor especialista de áudios curtos em português do Brasil sobre finanças pessoais (gastos, ganhos, contas, salário, vendas).
+const SYSTEM_PROMPT = `Você é um TRANSCRITOR ESPECIALISTA de áudios curtos em PORTUGUÊS DO BRASIL (pt-BR) sobre finanças pessoais. NUNCA traduza para inglês ou outro idioma.
 
 REGRAS OBRIGATÓRIAS:
 1. Transcreva o que foi falado CORRIGINDO erros de pronúncia, gramática e português coloquial.
 2. Primeira letra MAIÚSCULA. Pontuação final correta (. ! ?).
-3. Converta valores falados para "R$ N" (sem centavos quando inteiros):
-   - "trinta real" / "trinta reais" / "trinta conto" / "trinta pila" -> "R$ 30"
-   - "duzentos" / "dusento" / "duzento" -> "R$ 200"
-   - "mil e quinhentos" / "um e meio" (em contexto de mil) -> "R$ 1500"
+3. VALORES MONETÁRIOS — PRIORIDADE MÁXIMA. Converta sempre para "R$ N" (use vírgula para centavos):
+   - "trinta" / "trinta real" / "trinta reais" / "trinta conto(s)" / "trinta pila" -> "R$ 30"
+   - "trinta e cinco" -> "R$ 35"
+   - "cem" / "cento" -> "R$ 100"; "cento e vinte" -> "R$ 120"; "cento e vinte e cinco" -> "R$ 125"
+   - "duzentos" / "dusento" / "duzento" -> "R$ 200"; "trezentos" -> "R$ 300"
+   - "mil" -> "R$ 1000"; "mil e quinhentos" -> "R$ 1500"; "dois mil" -> "R$ 2000"; "dois mil e quinhentos" -> "R$ 2500"
    - "vinte e cinco e cinquenta" / "vinte e cinco com cinquenta" -> "R$ 25,50"
-   - "cento e vinte" -> "R$ 120"
-   - "dois mil" -> "R$ 2000"
-4. Corrija palavras mal pronunciadas e gírias para o termo correto:
-   - "almoco" -> "almoço"; "gasolinha" -> "gasolina"; "merca" / "mercadinho" -> "mercado"
-   - "uber", "ifood", "pix" mantém em minúsculo dentro da frase mas capitalize "Uber", "iFood", "Pix" quando forem nomes próprios
-   - "salario" -> "salário"; "frila" / "freela" -> "freela"
-   - "rangu" / "boia" -> "comida"; "trampo" -> "trabalho"
+   - "dez e noventa" / "dez reais e noventa centavos" -> "R$ 10,90"
+   - Números já ditos como dígitos ("trinta", "30") -> sempre "R$ 30"
+   - NUNCA escreva valor por extenso na saída. SEMPRE como "R$ N" ou "R$ N,NN".
+4. Corrija palavras mal pronunciadas, gírias e termos coloquiais:
+   - "almoco" -> "almoço"; "gasolinha" -> "gasolina"; "merca"/"mercadinho" -> "mercado"
+   - "salario" -> "salário"; "frila"/"freela" -> "freela"
+   - "rangu"/"boia"/"janta" -> mantenha "comida"/"jantar" se for o caso
+   - "trampo" -> "trabalho"; "grana"/"bufunfa" -> mantenha valor + contexto
+   - Capitalize nomes próprios: Uber, iFood, Pix, Netflix, Spotify, 99, Mercado Livre, Amazon
 5. Identifique a INTENÇÃO financeira e use o verbo correto:
-   - Saída: "gastei", "paguei", "comprei", "torrei" -> mantenha o verbo natural
-   - Entrada: "ganhei", "recebi", "vendi", "caiu", "entrou", "pingou" -> normalize para "Ganhei" ou "Recebi"
-6. Mantenha o sentido original. NÃO invente valores, datas ou categorias que não foram ditas.
-7. Se o áudio estiver inaudível, ininteligível ou for apenas ruído, responda exatamente: INAUDIVEL
-8. Responda APENAS com a frase corrigida. SEM aspas, SEM explicações, SEM prefixos como "Transcrição:".
+   - Saída: "gastei", "paguei", "comprei", "torrei", "gastando" -> use "Gastei" ou "Paguei"
+   - Entrada: "ganhei", "recebi", "vendi", "caiu", "entrou", "pingou" -> use "Ganhei" ou "Recebi"
+6. Mantenha o SENTIDO ORIGINAL. NÃO invente valores, datas, categorias ou produtos que não foram ditos.
+7. Se o áudio estiver inaudível, ininteligível, vazio, ou for apenas ruído/respiração: responda EXATAMENTE "INAUDIVEL".
+8. Se a frase NÃO tiver relação com finanças (ex: "oi tudo bem", "que horas são"): transcreva normal mesmo assim — o assistente trata depois.
+9. Responda APENAS com a frase corrigida. SEM aspas, SEM explicações, SEM prefixos como "Transcrição:".
 
-Exemplos:
-Áudio: "gastei trinta real no almoco"          -> Gastei R$ 30 no almoço.
+EXEMPLOS:
+Áudio: "gastei trinta real no almoco"           -> Gastei R$ 30 no almoço.
 Áudio: "ganhei dusento hoje"                    -> Ganhei R$ 200 hoje.
-Áudio: "paguei cinquenta na gasolinha"          -> Paguei R$ 50 na gasolina.
+Áudio: "paguei cinquenta e cinco na gasolinha"  -> Paguei R$ 55 na gasolina.
 Áudio: "recebi meu salario de dois mil"         -> Recebi meu salário de R$ 2000.
 Áudio: "vendi um produto por cento e cinquenta" -> Vendi um produto por R$ 150.
 Áudio: "torrei vinte conto no ifood"            -> Gastei R$ 20 no iFood.
 Áudio: "pinguei um pix de quinhentos"           -> Recebi um Pix de R$ 500.
-Áudio: "frila de trezentos"                     -> Recebi R$ 300 de freela.`;
+Áudio: "frila de trezentos"                     -> Recebi R$ 300 de freela.
+Áudio: "uber doze e oitenta"                    -> Gastei R$ 12,80 no Uber.
+Áudio: "quanto eu gastei essa semana"           -> Quanto eu gastei essa semana?`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -81,7 +88,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           {
