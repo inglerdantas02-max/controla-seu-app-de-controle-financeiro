@@ -124,8 +124,8 @@ Deno.serve(async (req) => {
       text = text.charAt(0).toUpperCase() + text.slice(1);
     }
 
-    if (!text) {
-      return new Response(JSON.stringify({ error: "Não consegui entender. Tente falar novamente." }), {
+    if (!text || /^INAUDIVEL\.?$/i.test(text)) {
+      return new Response(JSON.stringify({ error: "Não entendi muito bem, pode repetir?" }), {
         status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
