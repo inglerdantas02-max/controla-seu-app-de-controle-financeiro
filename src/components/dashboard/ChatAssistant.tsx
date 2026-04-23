@@ -6,8 +6,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-import { Send, Sparkles, Check, X, Loader2, Mic, MicOff } from "lucide-react";
-import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import { Send, Sparkles, Check, X, Loader2, Mic, Square } from "lucide-react";
+import { usePushToTalk } from "@/hooks/usePushToTalk";
+import RecordingIndicator from "./RecordingIndicator";
 
 interface PendingTransaction {
   type: "income" | "expense";
@@ -209,42 +210,119 @@ function VoiceInputRow({
   loading: boolean;
   onFocus?: () => void;
 }) {
-  const { supported, listening, start, stop } = useSpeechRecognition({
-    lang: "pt-BR",
-    onResult: (text) => setInput(text),
-    onError: (msg) => toast({ title: "Voz", description: msg, variant: "destructive" }),
+  const [transcribing, setTranscribing] = useState(false);
+  const [cancelHint, setCancelHint] = useState(false);
+  const startXRef = useRef<number | null>(null);
+  const CANCEL_THRESHOLD = 80; // px swipe left to cancel
+
+  const ptt = usePushToTalk({
+    onError: (msg) => toast({ title: "Microfone", description: msg, variant: "destructive" }),
+    onResult: async (audioBase64, mimeType) => {
+      setTranscribing(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("transcribe-audio", {
+          body: { audio: audioBase64, mimeType },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        const text: string = data?.text || "";
+        if (!text) {
+          toast({ title: "Áudio", description: "Não consegui entender. Tente falar novamente.", variant: "destructive" });
+          return;
+        }
+        setInput(text);
+      } catch (e: any) {
+        toast({ title: "Erro", description: e.message || "Falha ao transcrever", variant: "destructive" });
+      } finally {
+        setTranscribing(false);
+      }
+    },
   });
 
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (loading || transcribing) return;
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    startXRef.current = e.clientX;
+    setCancelHint(false);
+    ptt.start();
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!ptt.recording || startXRef.current == null) return;
+    const dx = e.clientX - startXRef.current;
+    setCancelHint(dx < -CANCEL_THRESHOLD);
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (!ptt.recording) return;
+    const start = startXRef.current;
+    startXRef.current = null;
+    const shouldCancel = start != null && e.clientX - start < -CANCEL_THRESHOLD;
+    setCancelHint(false);
+    if (shouldCancel) ptt.cancel();
+    else ptt.stop();
+  };
+
+  const onPointerCancel = () => {
+    startXRef.current = null;
+    setCancelHint(false);
+    if (ptt.recording) ptt.cancel();
+  };
+
+  const busy = loading || transcribing;
+
   return (
-    <div className="border-t p-3 flex gap-2 items-center">
-      <Input
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && send()}
-        onFocus={onFocus}
-        placeholder={listening ? "Ouvindo..." : "Ex: Gastei 30 com almoço"}
-        disabled={loading || listening}
-        className="rounded-full"
-      />
-      {supported && (
+    <div className="border-t p-3 flex gap-2 items-center select-none">
+      {ptt.recording ? (
+        <RecordingIndicator elapsedMs={ptt.elapsedMs} level={ptt.level} cancelHint={cancelHint} />
+      ) : (
+        <Input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && send()}
+          onFocus={onFocus}
+          placeholder={transcribing ? "Transcrevendo..." : "Ex: Gastei 30 com almoço"}
+          disabled={busy}
+          className="rounded-full"
+        />
+      )}
+
+      {!input.trim() && !ptt.recording ? (
         <Button
           type="button"
-          onClick={listening ? stop : start}
-          disabled={loading}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          onContextMenu={(e) => e.preventDefault()}
+          disabled={busy}
           size="icon"
-          variant={listening ? "destructive" : "outline"}
-          className={`shrink-0 relative ${listening ? "animate-pulse" : ""}`}
-          aria-label={listening ? "Parar gravação" : "Gravar mensagem"}
+          variant="hero"
+          className="shrink-0 touch-none"
+          aria-label="Segure para gravar"
+          title="Segure para gravar"
         >
-          {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-          {listening && (
-            <span className="absolute inset-0 rounded-full bg-destructive/40 animate-ping -z-10" />
-          )}
+          {transcribing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
+        </Button>
+      ) : ptt.recording ? (
+        <Button
+          type="button"
+          onPointerUp={onPointerUp}
+          onPointerMove={onPointerMove}
+          onPointerCancel={onPointerCancel}
+          size="icon"
+          variant={cancelHint ? "destructive" : "hero"}
+          className="shrink-0 touch-none animate-pulse"
+          aria-label="Solte para enviar"
+        >
+          <Square className="w-4 h-4 fill-current" />
+        </Button>
+      ) : (
+        <Button onClick={send} disabled={busy || !input.trim()} size="icon" variant="hero" className="shrink-0">
+          <Send className="w-4 h-4" />
         </Button>
       )}
-      <Button onClick={send} disabled={loading || !input.trim()} size="icon" variant="hero" className="shrink-0">
-        <Send className="w-4 h-4" />
-      </Button>
     </div>
   );
 }
