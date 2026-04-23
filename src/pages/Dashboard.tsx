@@ -238,7 +238,7 @@ const Dashboard = () => {
               <p className="text-sm text-muted-foreground mb-4">
                 Comece registrando um gasto ou ganho com o assistente.
               </p>
-              <Button variant="hero" onClick={() => setChatOpen(true)}>
+              <Button variant="hero" onClick={openChatWithInsight}>
                 <MessageCircle className="w-4 h-4" /> Abrir assistente
               </Button>
             </div>
