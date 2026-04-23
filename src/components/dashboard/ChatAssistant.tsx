@@ -247,7 +247,6 @@ function VoiceInputRow({
         // Coloca a transcrição corrigida no input para o usuário revisar/editar antes de enviar.
         // O assistente ainda mostrará botões "Confirmar/Cancelar" depois — dupla checagem.
         setInput(text);
-        toast({ title: "Transcrito", description: "Revise e toque em enviar — ou edite se precisar." });
       } catch (e: any) {
         const msg = e?.message || "Falha ao transcrever";
         toast({ title: "Erro", description: msg, variant: "destructive" });
