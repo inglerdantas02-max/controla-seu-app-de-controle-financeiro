@@ -49,6 +49,9 @@ const Dashboard = () => {
   const [loadingTxs, setLoadingTxs] = useState(true);
   const [period, setPeriod] = useState<Period>("today");
   const [fullName, setFullName] = useState<string>("");
+  const [insight, setInsight] = useState<string | null>(null);
+  const [insightSeen, setInsightSeen] = useState<boolean>(false);
+  const [pendingInsightForChat, setPendingInsightForChat] = useState<string | null>(null);
 
   const loadTxs = useCallback(async () => {
     if (!user) return;
