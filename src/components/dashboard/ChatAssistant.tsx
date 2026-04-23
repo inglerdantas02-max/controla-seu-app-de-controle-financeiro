@@ -81,10 +81,10 @@ const ChatAssistant = ({ open, onOpenChange, onTransactionSaved }: Props) => {
     }, 250);
   };
 
-  const send = async () => {
-    const text = input.trim();
+  const send = async (overrideText?: string) => {
+    const text = (overrideText ?? input).trim();
     if (!text || loading) return;
-    setInput("");
+    if (!overrideText) setInput("");
     const userMsg: Msg = { id: crypto.randomUUID(), role: "user", content: text };
     setMessages((p) => [...p, userMsg]);
     setLoading(true);
