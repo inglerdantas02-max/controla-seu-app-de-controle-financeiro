@@ -43,10 +43,42 @@ const ChatAssistant = ({ open, onOpenChange, onTransactionSaved }: Props) => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRowRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    // ScrollArea uses a viewport child for scrolling
+    const root = scrollRef.current;
+    const viewport = root?.querySelector<HTMLElement>("[data-radix-scroll-area-viewport]") || root;
+    viewport?.scrollTo({ top: viewport.scrollHeight, behavior });
+  };
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    scrollToBottom("smooth");
   }, [messages]);
+
+  // Reajustar quando o teclado virtual abrir/fechar (visualViewport)
+  useEffect(() => {
+    if (!open) return;
+    const vv = (window as any).visualViewport as VisualViewport | undefined;
+    if (!vv) return;
+    const handler = () => {
+      scrollToBottom("auto");
+      inputRowRef.current?.scrollIntoView({ block: "end" });
+    };
+    vv.addEventListener("resize", handler);
+    vv.addEventListener("scroll", handler);
+    return () => {
+      vv.removeEventListener("resize", handler);
+      vv.removeEventListener("scroll", handler);
+    };
+  }, [open]);
+
+  const handleInputFocus = () => {
+    setTimeout(() => {
+      scrollToBottom("smooth");
+      inputRowRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    }, 250);
+  };
 
   const send = async () => {
     const text = input.trim();
@@ -111,14 +143,14 @@ const ChatAssistant = ({ open, onOpenChange, onTransactionSaved }: Props) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 gap-0 h-[85vh] sm:h-[600px] flex flex-col rounded-3xl overflow-hidden">
+      <DialogContent className="max-w-md p-0 gap-0 h-[100dvh] sm:h-[600px] max-h-[100dvh] flex flex-col rounded-none sm:rounded-3xl overflow-hidden">
         <DialogHeader className="px-5 py-4 border-b bg-gradient-primary text-primary-foreground">
           <DialogTitle className="flex items-center gap-2 font-display">
             <Sparkles className="w-5 h-5" /> Assistente CONTROLA
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 px-4 py-4" ref={scrollRef as any}>
+        <ScrollArea className="flex-1 min-h-0 px-4 py-4" ref={scrollRef as any}>
           <div className="space-y-3">
             {messages.map((m) => (
               <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"} animate-fade-in`}>
@@ -154,7 +186,9 @@ const ChatAssistant = ({ open, onOpenChange, onTransactionSaved }: Props) => {
           </div>
         </ScrollArea>
 
-        <VoiceInputRow input={input} setInput={setInput} send={send} loading={loading} />
+        <div ref={inputRowRef} className="sticky bottom-0 bg-background z-10" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+          <VoiceInputRow input={input} setInput={setInput} send={send} loading={loading} onFocus={handleInputFocus} />
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -167,11 +201,13 @@ function VoiceInputRow({
   setInput,
   send,
   loading,
+  onFocus,
 }: {
   input: string;
   setInput: (v: string) => void;
   send: () => void;
   loading: boolean;
+  onFocus?: () => void;
 }) {
   const { supported, listening, start, stop } = useSpeechRecognition({
     lang: "pt-BR",
@@ -185,6 +221,7 @@ function VoiceInputRow({
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && send()}
+        onFocus={onFocus}
         placeholder={listening ? "Ouvindo..." : "Ex: Gastei 30 com almoço"}
         disabled={loading || listening}
         className="rounded-full"
