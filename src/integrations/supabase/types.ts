@@ -183,6 +183,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      expire_trial_if_needed: { Args: { _user_id: string }; Returns: undefined }
+      has_active_subscription: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
