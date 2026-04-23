@@ -229,6 +229,7 @@ function VoiceInputRow({
   const CANCEL_THRESHOLD = 80; // px swipe left to cancel
 
   const ptt = usePushToTalk({
+    minDurationMs: 500,
     onError: (msg) => toast({ title: "Microfone", description: msg, variant: "destructive" }),
     onResult: async (audioBase64, mimeType) => {
       setTranscribing(true);
@@ -238,15 +239,18 @@ function VoiceInputRow({
         });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
-        const text: string = data?.text || "";
+        const text: string = (data?.text || "").trim();
         if (!text) {
-          toast({ title: "Áudio", description: "Não entendi muito bem, pode repetir?", variant: "destructive" });
+          toast({ title: "Áudio", description: "Não entendi bem o que você falou, pode repetir?", variant: "destructive" });
           return;
         }
-        // Auto-envia a transcrição corrigida — o assistente confirma com botões antes de salvar
-        send(text);
+        // Coloca a transcrição corrigida no input para o usuário revisar/editar antes de enviar.
+        // O assistente ainda mostrará botões "Confirmar/Cancelar" depois — dupla checagem.
+        setInput(text);
+        toast({ title: "Transcrito", description: "Revise e toque em enviar — ou edite se precisar." });
       } catch (e: any) {
-        toast({ title: "Erro", description: e.message || "Falha ao transcrever", variant: "destructive" });
+        const msg = e?.message || "Falha ao transcrever";
+        toast({ title: "Erro", description: msg, variant: "destructive" });
       } finally {
         setTranscribing(false);
       }
