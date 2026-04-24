@@ -1,7 +1,12 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Settings, Shield, MessageCircle, TrendingUp, TrendingDown, Inbox, Trash2, FileText } from "lucide-react";
+import { Settings, Shield, MessageCircle, TrendingUp, TrendingDown, Inbox, Trash2, FileText, CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import logo from "@/assets/logo.png";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,7 +39,7 @@ interface Tx {
   occurred_at: string;
 }
 
-type Period = "today" | "week" | "month" | "all";
+type Period = "today" | "week" | "month" | "all" | "custom";
 
 const formatBRL = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -48,6 +53,8 @@ const Dashboard = () => {
   const [reportOpen, setReportOpen] = useState(false);
   const [loadingTxs, setLoadingTxs] = useState(true);
   const [period, setPeriod] = useState<Period>("today");
+  const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
+  const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const [fullName, setFullName] = useState<string>("");
   const [insight, setInsight] = useState<string | null>(null);
   const [insightSeen, setInsightSeen] = useState<boolean>(false);
@@ -129,6 +136,7 @@ const Dashboard = () => {
   const { filteredTxs, periodLabel } = useMemo(() => {
     const now = new Date();
     let startDate: Date | null = null;
+    let endDate: Date | null = null;
     let label = "Todo período";
     if (period === "today") {
       startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -140,12 +148,19 @@ const Dashboard = () => {
     } else if (period === "month") {
       startDate = new Date(now.getFullYear(), now.getMonth(), 1);
       label = "Este mês";
+    } else if (period === "custom" && customDate) {
+      startDate = new Date(customDate.getFullYear(), customDate.getMonth(), customDate.getDate());
+      endDate = new Date(customDate.getFullYear(), customDate.getMonth(), customDate.getDate(), 23, 59, 59, 999);
+      label = format(customDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
     }
-    const filtered = startDate
-      ? txs.filter((t) => new Date(t.occurred_at) >= startDate!)
-      : txs;
+    const filtered = txs.filter((t) => {
+      const d = new Date(t.occurred_at);
+      if (startDate && d < startDate) return false;
+      if (endDate && d > endDate) return false;
+      return true;
+    });
     return { filteredTxs: filtered, periodLabel: label };
-  }, [txs, period]);
+  }, [txs, period, customDate]);
 
   if (loading || subLoading) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   if (!user) return <Navigate to="/auth" replace />;
@@ -197,14 +212,47 @@ const Dashboard = () => {
           </Button>
         </div>
 
-        <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)} className="mb-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-md">
-            <TabsTrigger value="today">Hoje</TabsTrigger>
-            <TabsTrigger value="week">Semana</TabsTrigger>
-            <TabsTrigger value="month">Mês</TabsTrigger>
-            <TabsTrigger value="all">Tudo</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
+          <Tabs value={period === "custom" ? "" : period} onValueChange={(v) => setPeriod(v as Period)}>
+            <TabsList className="grid grid-cols-4 w-full max-w-md">
+              <TabsTrigger value="today">Hoje</TabsTrigger>
+              <TabsTrigger value="week">Semana</TabsTrigger>
+              <TabsTrigger value="month">Mês</TabsTrigger>
+              <TabsTrigger value="all">Tudo</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant={period === "custom" ? "default" : "outline"}
+                size="sm"
+                className={cn("h-10 gap-2", period === "custom" && "bg-gradient-primary text-primary-foreground")}
+              >
+                <CalendarIcon className="w-4 h-4" />
+                {period === "custom" && customDate
+                  ? format(customDate, "dd/MM/yyyy")
+                  : "Escolher dia"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={customDate}
+                onSelect={(d) => {
+                  if (d) {
+                    setCustomDate(d);
+                    setPeriod("custom");
+                    setDatePopoverOpen(false);
+                  }
+                }}
+                disabled={(date) => date > new Date()}
+                initialFocus
+                locale={ptBR}
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
 
         <div className="grid md:grid-cols-3 gap-4 mb-8">
           <div className="bg-gradient-primary text-primary-foreground p-6 rounded-3xl shadow-glow">
