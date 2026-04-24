@@ -136,6 +136,7 @@ const Dashboard = () => {
   const { filteredTxs, periodLabel } = useMemo(() => {
     const now = new Date();
     let startDate: Date | null = null;
+    let endDate: Date | null = null;
     let label = "Todo período";
     if (period === "today") {
       startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -147,12 +148,19 @@ const Dashboard = () => {
     } else if (period === "month") {
       startDate = new Date(now.getFullYear(), now.getMonth(), 1);
       label = "Este mês";
+    } else if (period === "custom" && customDate) {
+      startDate = new Date(customDate.getFullYear(), customDate.getMonth(), customDate.getDate());
+      endDate = new Date(customDate.getFullYear(), customDate.getMonth(), customDate.getDate(), 23, 59, 59, 999);
+      label = format(customDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
     }
-    const filtered = startDate
-      ? txs.filter((t) => new Date(t.occurred_at) >= startDate!)
-      : txs;
+    const filtered = txs.filter((t) => {
+      const d = new Date(t.occurred_at);
+      if (startDate && d < startDate) return false;
+      if (endDate && d > endDate) return false;
+      return true;
+    });
     return { filteredTxs: filtered, periodLabel: label };
-  }, [txs, period]);
+  }, [txs, period, customDate]);
 
   if (loading || subLoading) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   if (!user) return <Navigate to="/auth" replace />;
