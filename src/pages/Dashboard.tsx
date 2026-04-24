@@ -39,7 +39,7 @@ interface Tx {
   occurred_at: string;
 }
 
-type Period = "today" | "week" | "month" | "all";
+type Period = "today" | "week" | "month" | "all" | "custom";
 
 const formatBRL = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
