@@ -53,6 +53,8 @@ const Dashboard = () => {
   const [reportOpen, setReportOpen] = useState(false);
   const [loadingTxs, setLoadingTxs] = useState(true);
   const [period, setPeriod] = useState<Period>("today");
+  const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
+  const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const [fullName, setFullName] = useState<string>("");
   const [insight, setInsight] = useState<string | null>(null);
   const [insightSeen, setInsightSeen] = useState<boolean>(false);
