@@ -212,14 +212,47 @@ const Dashboard = () => {
           </Button>
         </div>
 
-        <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)} className="mb-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-md">
-            <TabsTrigger value="today">Hoje</TabsTrigger>
-            <TabsTrigger value="week">Semana</TabsTrigger>
-            <TabsTrigger value="month">Mês</TabsTrigger>
-            <TabsTrigger value="all">Tudo</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
+          <Tabs value={period === "custom" ? "" : period} onValueChange={(v) => setPeriod(v as Period)}>
+            <TabsList className="grid grid-cols-4 w-full max-w-md">
+              <TabsTrigger value="today">Hoje</TabsTrigger>
+              <TabsTrigger value="week">Semana</TabsTrigger>
+              <TabsTrigger value="month">Mês</TabsTrigger>
+              <TabsTrigger value="all">Tudo</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant={period === "custom" ? "default" : "outline"}
+                size="sm"
+                className={cn("h-10 gap-2", period === "custom" && "bg-gradient-primary text-primary-foreground")}
+              >
+                <CalendarIcon className="w-4 h-4" />
+                {period === "custom" && customDate
+                  ? format(customDate, "dd/MM/yyyy")
+                  : "Escolher dia"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={customDate}
+                onSelect={(d) => {
+                  if (d) {
+                    setCustomDate(d);
+                    setPeriod("custom");
+                    setDatePopoverOpen(false);
+                  }
+                }}
+                disabled={(date) => date > new Date()}
+                initialFocus
+                locale={ptBR}
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
 
         <div className="grid md:grid-cols-3 gap-4 mb-8">
           <div className="bg-gradient-primary text-primary-foreground p-6 rounded-3xl shadow-glow">
