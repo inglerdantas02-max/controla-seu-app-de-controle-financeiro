@@ -234,7 +234,13 @@ const Dashboard = () => {
                   : "Escolher dia"}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
+            <PopoverContent
+              className="w-auto p-0 max-w-[calc(100vw-2rem)]"
+              align="center"
+              side="bottom"
+              sideOffset={8}
+              collisionPadding={16}
+            >
               <Calendar
                 mode="single"
                 selected={customDate}
