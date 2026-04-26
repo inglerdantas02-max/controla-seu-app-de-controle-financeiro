@@ -131,62 +131,41 @@ const Admin = () => {
                     <TableHead>Email</TableHead>
                     <TableHead>Plano</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {profiles.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell className="font-medium">{u.full_name || "—"}</TableCell>
-                      <TableCell className="text-muted-foreground">{u.email || "—"}</TableCell>
-                      <TableCell>
-                        <Select
-                          value={u.plan_id || ""}
-                          onValueChange={(v) => updateUserPlan(u.id, v)}
-                        >
-                          <SelectTrigger className="w-[140px]">
-                            <SelectValue placeholder="Selecionar" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {plans.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={statusVariant(u.status)}>
-                          {statusLabel(u.status)}
-                        </Badge>
-                        {u.status === "trial" && u.trial_end_date && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            até {new Date(u.trial_end_date).toLocaleDateString("pt-BR")}
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Select value={u.status} onValueChange={(v) => updateUserStatus(u.id, v)}>
-                          <SelectTrigger className="w-[140px] ml-auto">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="trial">Em teste</SelectItem>
-                            <SelectItem value="active">Ativo</SelectItem>
-                            <SelectItem value="expired">Expirado</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {profiles.map((u) => {
+                    const planName = plans.find((p) => p.id === u.plan_id)?.name || "—";
+                    return (
+                      <TableRow key={u.id}>
+                        <TableCell className="font-medium">{u.full_name || "—"}</TableCell>
+                        <TableCell className="text-muted-foreground">{u.email || "—"}</TableCell>
+                        <TableCell>{planName}</TableCell>
+                        <TableCell>
+                          <Badge variant={statusVariant(u.status)}>
+                            {statusLabel(u.status)}
+                          </Badge>
+                          {u.status === "trial" && u.trial_end_date && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              até {new Date(u.trial_end_date).toLocaleDateString("pt-BR")}
+                            </p>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                   {profiles.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                         Nenhum usuário cadastrado
                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
+              <p className="text-xs text-muted-foreground p-3">
+                Status e plano são gerenciados automaticamente pelo sistema de pagamento.
+              </p>
             </div>
           </TabsContent>
 
