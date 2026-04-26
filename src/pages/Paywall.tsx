@@ -1,15 +1,12 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Check, LogOut } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { CheckoutDialog } from "@/components/CheckoutDialog";
+import { useCheckout } from "@/hooks/useCheckout";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 
 const Paywall = () => {
-  const { user } = useAuth();
-  const [open, setOpen] = useState(false);
+  const { openCheckout } = useCheckout();
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -56,7 +53,7 @@ const Paywall = () => {
               ))}
             </ul>
 
-            <Button onClick={() => setOpen(true)} variant="hero" size="lg" className="w-full mb-3">
+            <Button onClick={openCheckout} variant="hero" size="lg" className="w-full mb-3">
               Assinar agora
             </Button>
             <Button onClick={handleSignOut} variant="ghost" size="sm" className="w-full">
@@ -65,15 +62,6 @@ const Paywall = () => {
           </div>
         </div>
       </div>
-
-      <CheckoutDialog
-        open={open}
-        onOpenChange={setOpen}
-        priceId="controla_pro_monthly"
-        customerEmail={user?.email}
-        userId={user?.id}
-        returnUrl={`${window.location.origin}/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`}
-      />
     </div>
   );
 };
