@@ -220,6 +220,7 @@ const Dashboard = () => {
 
       <main className="container py-8">
         {!isAdmin && subStatus === "trial" && <TrialBanner daysLeft={daysLeft} />}
+        {!isAdmin && subStatus === "past_due" && <PastDueBanner />}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
           <div>
             <h1 className="font-display text-3xl md:text-4xl font-bold mb-1">
