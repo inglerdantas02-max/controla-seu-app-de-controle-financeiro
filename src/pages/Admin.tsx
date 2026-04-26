@@ -9,13 +9,6 @@ import { toast } from "sonner";
 import { ArrowLeft, Plus, Trash2, Save, Users as UsersIcon, Package } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
 interface Plan {
@@ -91,27 +84,8 @@ const Admin = () => {
     else load();
   };
 
-  const updateUserPlan = async (userId: string, planId: string) => {
-    const { error } = await supabase.from("profiles").update({ plan_id: planId }).eq("id", userId);
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Plano alterado");
-      load();
-    }
-  };
-
-  const updateUserStatus = async (userId: string, next: string) => {
-    const patch: any = { status: next };
-    if (next === "active") {
-      patch.trial_end_date = null;
-    }
-    const { error } = await supabase.from("profiles").update(patch).eq("id", userId);
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Status atualizado");
-      load();
-    }
-  };
+  // Status & plan are managed exclusively by the Stripe webhook → DB trigger flow.
+  // Admin no longer mutates these fields manually to avoid drift with Stripe.
 
   const statusLabel = (s: string) =>
     s === "active" ? "Ativo" : s === "trial" ? "Em teste" : s === "expired" ? "Expirado" : s;

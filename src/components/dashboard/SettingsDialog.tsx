@@ -4,11 +4,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscription } from "@/hooks/useSubscription";
+import { useCheckout } from "@/hooks/useCheckout";
 import { signOut } from "@/lib/auth";
 import { toast } from "@/hooks/use-toast";
-import { LogOut, Plus, Trash2, Loader2 } from "lucide-react";
+import { LogOut, Plus, Trash2, Loader2, ExternalLink, Sparkles } from "lucide-react";
+import { getStripeEnvironment } from "@/lib/stripe";
 
 interface FixedExpense {
   id: string;
@@ -25,6 +39,9 @@ interface Props {
 
 const SettingsDialog = ({ open, onOpenChange }: Props) => {
   const { user } = useAuth();
+  const { status, currentPeriodEnd, cancelAtPeriodEnd, hasSubscription, daysLeft, trialEndDate } = useSubscription();
+  const { openCheckout } = useCheckout();
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
@@ -36,6 +53,9 @@ const SettingsDialog = ({ open, onOpenChange }: Props) => {
   const [exName, setExName] = useState("");
   const [exAmount, setExAmount] = useState("");
   const [exDay, setExDay] = useState("");
+
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     if (!open || !user) return;
@@ -107,6 +127,52 @@ const SettingsDialog = ({ open, onOpenChange }: Props) => {
     else setExpenses((p) => p.filter((e) => e.id !== id));
   };
 
+  const openPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-portal-session", {
+        body: {
+          returnUrl: `${window.location.origin}/dashboard`,
+          environment: getStripeEnvironment(),
+        },
+      });
+      if (error || !data?.url) throw new Error(error?.message || "Falha ao abrir o portal");
+      window.open(data.url, "_blank");
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
+  const deleteAccount = async () => {
+    setDeleteLoading(true);
+    const { error } = await supabase.rpc("delete_my_account");
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      setDeleteLoading(false);
+      return;
+    }
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  };
+
+  const formatDate = (d: Date | null) =>
+    d ? d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" }) : "—";
+
+  const statusBadge = () => {
+    if (status === "active") {
+      return <span className="inline-flex items-center gap-1 text-xs font-medium bg-success/15 text-success px-2 py-1 rounded-full">CONTROLA PRO</span>;
+    }
+    if (status === "trial") {
+      return <span className="inline-flex items-center gap-1 text-xs font-medium bg-primary/15 text-primary px-2 py-1 rounded-full">Trial • {daysLeft}d restantes</span>;
+    }
+    if (status === "past_due") {
+      return <span className="inline-flex items-center gap-1 text-xs font-medium bg-warning/20 text-warning-foreground px-2 py-1 rounded-full">Pagamento pendente</span>;
+    }
+    return <span className="inline-flex items-center gap-1 text-xs font-medium bg-muted text-muted-foreground px-2 py-1 rounded-full">Sem plano ativo</span>;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
@@ -114,8 +180,9 @@ const SettingsDialog = ({ open, onOpenChange }: Props) => {
           <DialogTitle className="font-display">Configurações</DialogTitle>
         </DialogHeader>
         <Tabs defaultValue="profile" className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid grid-cols-3">
+          <TabsList className="grid grid-cols-4">
             <TabsTrigger value="profile">Perfil</TabsTrigger>
+            <TabsTrigger value="plan">Plano</TabsTrigger>
             <TabsTrigger value="password">Senha</TabsTrigger>
             <TabsTrigger value="fixed">Fixas</TabsTrigger>
           </TabsList>
@@ -136,6 +203,89 @@ const SettingsDialog = ({ open, onOpenChange }: Props) => {
             <Button onClick={() => signOut()} variant="outline" className="w-full">
               <LogOut className="w-4 h-4" /> Sair da conta
             </Button>
+
+            <div className="pt-4 border-t border-border">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full text-danger hover:text-danger hover:bg-danger/10">
+                    <Trash2 className="w-4 h-4" /> Excluir minha conta
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir sua conta?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Todos os seus dados (movimentações, despesas fixas, perfil e assinatura)
+                      serão removidos permanentemente. Esta ação não pode ser desfeita.
+                      {hasSubscription && status === "active" && (
+                        <span className="block mt-2 font-medium text-foreground">
+                          Cancele sua assinatura no portal antes pra evitar próximas cobranças.
+                        </span>
+                      )}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={deleteAccount} disabled={deleteLoading} className="bg-danger hover:bg-danger/90">
+                      {deleteLoading && <Loader2 className="w-4 h-4 animate-spin" />} Sim, excluir
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="plan" className="space-y-4 overflow-y-auto pr-1">
+            <div className="bg-card border border-border rounded-2xl p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">Plano atual</p>
+                {statusBadge()}
+              </div>
+
+              {status === "active" && currentPeriodEnd && (
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    {cancelAtPeriodEnd ? "Acesso até" : "Próxima cobrança"}
+                  </p>
+                  <p className="font-semibold">{formatDate(currentPeriodEnd)}</p>
+                  {cancelAtPeriodEnd && (
+                    <p className="text-xs text-warning-foreground mt-1">
+                      Sua assinatura será encerrada nesta data.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {status === "trial" && trialEndDate && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Seu teste termina em</p>
+                  <p className="font-semibold">{formatDate(trialEndDate)}</p>
+                </div>
+              )}
+
+              {status === "past_due" && (
+                <p className="text-sm">
+                  A última cobrança falhou. Atualize seu cartão pra não perder o acesso.
+                </p>
+              )}
+            </div>
+
+            {(status === "trial" || status === "expired" || !hasSubscription) && (
+              <Button onClick={openCheckout} variant="hero" className="w-full">
+                <Sparkles className="w-4 h-4" /> Assinar CONTROLA PRO
+              </Button>
+            )}
+
+            {hasSubscription && (
+              <Button onClick={openPortal} disabled={portalLoading} variant="outline" className="w-full">
+                {portalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                Gerenciar assinatura e cobrança
+              </Button>
+            )}
+
+            <p className="text-xs text-muted-foreground text-center">
+              No portal você pode atualizar o cartão, ver faturas e cancelar a qualquer momento.
+            </p>
           </TabsContent>
 
           <TabsContent value="password" className="space-y-4 overflow-y-auto pr-1">
