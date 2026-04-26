@@ -9,13 +9,6 @@ import { toast } from "sonner";
 import { ArrowLeft, Plus, Trash2, Save, Users as UsersIcon, Package } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
 interface Plan {
@@ -91,27 +84,8 @@ const Admin = () => {
     else load();
   };
 
-  const updateUserPlan = async (userId: string, planId: string) => {
-    const { error } = await supabase.from("profiles").update({ plan_id: planId }).eq("id", userId);
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Plano alterado");
-      load();
-    }
-  };
-
-  const updateUserStatus = async (userId: string, next: string) => {
-    const patch: any = { status: next };
-    if (next === "active") {
-      patch.trial_end_date = null;
-    }
-    const { error } = await supabase.from("profiles").update(patch).eq("id", userId);
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Status atualizado");
-      load();
-    }
-  };
+  // Status & plan are managed exclusively by the Stripe webhook → DB trigger flow.
+  // Admin no longer mutates these fields manually to avoid drift with Stripe.
 
   const statusLabel = (s: string) =>
     s === "active" ? "Ativo" : s === "trial" ? "Em teste" : s === "expired" ? "Expirado" : s;
@@ -157,62 +131,41 @@ const Admin = () => {
                     <TableHead>Email</TableHead>
                     <TableHead>Plano</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {profiles.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell className="font-medium">{u.full_name || "—"}</TableCell>
-                      <TableCell className="text-muted-foreground">{u.email || "—"}</TableCell>
-                      <TableCell>
-                        <Select
-                          value={u.plan_id || ""}
-                          onValueChange={(v) => updateUserPlan(u.id, v)}
-                        >
-                          <SelectTrigger className="w-[140px]">
-                            <SelectValue placeholder="Selecionar" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {plans.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={statusVariant(u.status)}>
-                          {statusLabel(u.status)}
-                        </Badge>
-                        {u.status === "trial" && u.trial_end_date && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            até {new Date(u.trial_end_date).toLocaleDateString("pt-BR")}
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Select value={u.status} onValueChange={(v) => updateUserStatus(u.id, v)}>
-                          <SelectTrigger className="w-[140px] ml-auto">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="trial">Em teste</SelectItem>
-                            <SelectItem value="active">Ativo</SelectItem>
-                            <SelectItem value="expired">Expirado</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {profiles.map((u) => {
+                    const planName = plans.find((p) => p.id === u.plan_id)?.name || "—";
+                    return (
+                      <TableRow key={u.id}>
+                        <TableCell className="font-medium">{u.full_name || "—"}</TableCell>
+                        <TableCell className="text-muted-foreground">{u.email || "—"}</TableCell>
+                        <TableCell>{planName}</TableCell>
+                        <TableCell>
+                          <Badge variant={statusVariant(u.status)}>
+                            {statusLabel(u.status)}
+                          </Badge>
+                          {u.status === "trial" && u.trial_end_date && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              até {new Date(u.trial_end_date).toLocaleDateString("pt-BR")}
+                            </p>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                   {profiles.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                         Nenhum usuário cadastrado
                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
+              <p className="text-xs text-muted-foreground p-3">
+                Status e plano são gerenciados automaticamente pelo sistema de pagamento.
+              </p>
             </div>
           </TabsContent>
 

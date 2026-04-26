@@ -17,6 +17,7 @@ const nameSchema = z.string().trim().min(1, "Informe seu nome").max(100);
 const Auth = () => {
   const [params] = useSearchParams();
   const initial = (params.get("mode") as "login" | "signup") || "login";
+  const next = params.get("next"); // "checkout" → go to dashboard with checkout intent
   const [mode, setMode] = useState<"login" | "signup" | "forgot">(initial);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,8 +30,8 @@ const Auth = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (user) navigate("/dashboard");
-  }, [user, navigate]);
+    if (user) navigate(next === "checkout" ? "/dashboard?checkout=open" : "/dashboard");
+  }, [user, navigate, next]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,12 +60,12 @@ const Auth = () => {
         const { error: signInError } = await signIn(email, password);
         if (signInError) throw signInError;
         toast.success("Conta criada com sucesso!");
-        navigate("/dashboard");
+        navigate(next === "checkout" ? "/dashboard?checkout=open" : "/dashboard");
       } else {
         const { error } = await signIn(email, password);
         if (error) throw error;
         toast.success("Bem-vindo de volta!");
-        navigate("/dashboard");
+        navigate(next === "checkout" ? "/dashboard?checkout=open" : "/dashboard");
       }
     } catch (err: any) {
       toast.error(err?.message || "Algo deu errado");

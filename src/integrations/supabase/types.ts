@@ -231,6 +231,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_my_account: { Args: never; Returns: undefined }
       expire_trial_if_needed: { Args: { _user_id: string }; Returns: undefined }
       has_active_subscription: { Args: { _user_id: string }; Returns: boolean }
       has_role: {

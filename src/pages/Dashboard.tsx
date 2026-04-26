@@ -16,6 +16,8 @@ import ReportDialog from "@/components/dashboard/ReportDialog";
 import TrialBanner from "@/components/dashboard/TrialBanner";
 import Paywall from "@/pages/Paywall";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useCheckout } from "@/hooks/useCheckout";
+import PastDueBanner from "@/components/dashboard/PastDueBanner";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -47,24 +49,28 @@ const formatBRL = (n: number) =>
 const Dashboard = () => {
   const { user, isAdmin, loading } = useAuth();
   const { status: subStatus, daysLeft, isBlocked, loading: subLoading, refresh: refreshSub } = useSubscription();
+  const { openCheckout } = useCheckout();
 
-  // After Stripe Embedded Checkout returns, refresh the subscription status.
+  // Handle checkout intents from URL: ?checkout=success (after payment) or ?checkout=open (from landing)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("checkout") === "success") {
+    const ck = params.get("checkout");
+    if (ck === "success") {
       toast({ title: "Pagamento recebido!", description: "Liberando o acesso PRO..." });
-      // Webhook may take a few seconds — poll a few times.
       let tries = 0;
       const t = setInterval(async () => {
         tries++;
         await refreshSub();
         if (tries >= 6) clearInterval(t);
       }, 2000);
-      // Clean URL
       window.history.replaceState({}, "", window.location.pathname);
       return () => clearInterval(t);
     }
-  }, [refreshSub]);
+    if (ck === "open") {
+      window.history.replaceState({}, "", window.location.pathname);
+      openCheckout();
+    }
+  }, [refreshSub, openCheckout]);
   const [txs, setTxs] = useState<Tx[]>([]);
   const [chatOpen, setChatOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -214,6 +220,7 @@ const Dashboard = () => {
 
       <main className="container py-8">
         {!isAdmin && subStatus === "trial" && <TrialBanner daysLeft={daysLeft} />}
+        {!isAdmin && subStatus === "past_due" && <PastDueBanner />}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
           <div>
             <h1 className="font-display text-3xl md:text-4xl font-bold mb-1">

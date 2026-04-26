@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Check, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useCheckout } from "@/hooks/useCheckout";
 
 interface Plan {
   id: string;
@@ -14,6 +16,9 @@ interface Plan {
 
 export const Plans = () => {
   const [plans, setPlans] = useState<Plan[]>([]);
+  const { user } = useAuth();
+  const { openCheckout } = useCheckout();
+  const navigate = useNavigate();
 
   useEffect(() => {
     supabase
@@ -25,6 +30,19 @@ export const Plans = () => {
         if (data) setPlans(data as Plan[]);
       });
   }, []);
+
+  const handleClick = (isPremium: boolean) => {
+    if (!isPremium) {
+      navigate("/auth?mode=signup");
+      return;
+    }
+    if (user) {
+      openCheckout();
+    } else {
+      // Send to signup, then return to checkout
+      navigate("/auth?mode=signup&next=checkout");
+    }
+  };
 
   return (
     <section className="py-24 container">
@@ -60,7 +78,7 @@ export const Plans = () => {
                 <span className="text-5xl font-display font-extrabold">
                   R$ {Number(plan.price).toFixed(2).replace(".", ",")}
                 </span>
-                {isPremium && <span className={`ml-1 ${isPremium ? "text-primary-foreground/80" : "text-muted-foreground"}`}>/mês</span>}
+                {isPremium && <span className="ml-1 text-primary-foreground/80">/mês</span>}
               </div>
               <ul className="space-y-3 mb-8">
                 {plan.benefits.map((b) => (
@@ -71,12 +89,12 @@ export const Plans = () => {
                 ))}
               </ul>
               <Button
-                asChild
+                onClick={() => handleClick(isPremium)}
                 variant={isPremium ? "secondary" : "outline"}
                 className="w-full"
                 size="lg"
               >
-                <Link to="/auth?mode=signup">Começar com {plan.name}</Link>
+                {isPremium ? (user ? "Assinar agora" : "Assinar agora") : `Começar com ${plan.name}`}
               </Button>
             </motion.div>
           );
@@ -85,3 +103,4 @@ export const Plans = () => {
     </section>
   );
 };
+
