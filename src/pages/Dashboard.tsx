@@ -46,7 +46,25 @@ const formatBRL = (n: number) =>
 
 const Dashboard = () => {
   const { user, isAdmin, loading } = useAuth();
-  const { status: subStatus, daysLeft, isBlocked, loading: subLoading } = useSubscription();
+  const { status: subStatus, daysLeft, isBlocked, loading: subLoading, refresh: refreshSub } = useSubscription();
+
+  // After Stripe Embedded Checkout returns, refresh the subscription status.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") === "success") {
+      toast({ title: "Pagamento recebido!", description: "Liberando o acesso PRO..." });
+      // Webhook may take a few seconds — poll a few times.
+      let tries = 0;
+      const t = setInterval(async () => {
+        tries++;
+        await refreshSub();
+        if (tries >= 6) clearInterval(t);
+      }, 2000);
+      // Clean URL
+      window.history.replaceState({}, "", window.location.pathname);
+      return () => clearInterval(t);
+    }
+  }, [refreshSub]);
   const [txs, setTxs] = useState<Tx[]>([]);
   const [chatOpen, setChatOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
