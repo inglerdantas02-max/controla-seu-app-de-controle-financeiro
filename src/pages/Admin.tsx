@@ -36,19 +36,24 @@ const Admin = () => {
   const [stats, setStats] = useState({ users: 0, active: 0, revenue: 0 });
 
   const load = async () => {
-    const [{ data: p }, { data: prof, count }] = await Promise.all([
+    const [{ data: p }, { data: prof, count }, { data: subs }] = await Promise.all([
       supabase.from("plans").select("*").order("sort_order"),
       supabase.from("profiles").select("*", { count: "exact" }).order("created_at", { ascending: false }),
+      supabase.from("subscriptions").select("user_id,status,price_id"),
     ]);
     if (p) setPlans(p as Plan[]);
     if (prof) {
       setProfiles(prof as Profile[]);
-      const active = prof.filter((u: any) => u.status === "active").length;
-      const planMap = new Map((p || []).map((pl: any) => [pl.id, Number(pl.price)]));
-      const revenue = prof.reduce((sum: number, u: any) => {
-        if (u.status !== "active") return sum;
-        return sum + (planMap.get(u.plan_id) || 0);
-      }, 0);
+      // Active = users with a Stripe subscription currently in active/trialing/past_due
+      const activeSubUsers = new Set(
+        (subs ?? [])
+          .filter((s: any) => ["active", "trialing", "past_due"].includes(s.status))
+          .map((s: any) => s.user_id)
+      );
+      const active = activeSubUsers.size;
+      // Real MRR: count one CONTROLA PRO price per active subscriber
+      const proPlanPrice = (p || []).find((pl: any) => pl.name === "CONTROLA PRO")?.price ?? 0;
+      const revenue = active * Number(proPlanPrice);
       setStats({ users: count || 0, active, revenue });
     }
   };

@@ -147,9 +147,13 @@ const SettingsDialog = ({ open, onOpenChange }: Props) => {
 
   const deleteAccount = async () => {
     setDeleteLoading(true);
-    const { error } = await supabase.rpc("delete_my_account");
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    const { data, error } = await supabase.functions.invoke("delete-account", { body: {} });
+    if (error || !data?.ok) {
+      toast({
+        title: "Erro",
+        description: error?.message || "Falha ao excluir conta",
+        variant: "destructive",
+      });
       setDeleteLoading(false);
       return;
     }
