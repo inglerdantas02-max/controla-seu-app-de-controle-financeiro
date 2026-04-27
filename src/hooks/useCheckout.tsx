@@ -18,7 +18,6 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
       <CheckoutDialog
         open={open}
         onOpenChange={setOpen}
-        priceId="controla_pro_monthly"
         customerEmail={user?.email}
         userId={user?.id}
         returnUrl={`${window.location.origin}/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`}

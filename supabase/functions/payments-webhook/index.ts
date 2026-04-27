@@ -12,28 +12,75 @@ function getSupabase(): any {
   return _supabase;
 }
 
-async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
-  const userId = subscription.metadata?.userId;
-  if (!userId) {
-    console.error("No userId in subscription metadata");
+// Extend the profile's access by N months from the later of (now, current expires_at).
+async function extendProfileAccess(userId: string, months: number) {
+  const supabase = getSupabase();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("expires_at")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const now = new Date();
+  const baseDate =
+    profile?.expires_at && new Date(profile.expires_at) > now
+      ? new Date(profile.expires_at)
+      : now;
+
+  const newExpires = new Date(baseDate);
+  newExpires.setMonth(newExpires.getMonth() + months);
+
+  await supabase
+    .from("profiles")
+    .update({
+      status: "active",
+      expires_at: newExpires.toISOString(),
+      updated_at: now.toISOString(),
+    })
+    .eq("id", userId);
+
+  return newExpires;
+}
+
+async function handleCheckoutSessionCompleted(session: any, env: StripeEnv) {
+  // Only handle our period-based one-time purchases here
+  const kind = session.metadata?.product_kind;
+  if (kind !== "controla_pro_period") {
+    console.log("Ignoring non-period checkout session", session.id);
     return;
   }
-  const item = subscription.items?.data?.[0];
-  const priceId = item?.price?.metadata?.lovable_external_id || item?.price?.id;
-  const productId = item?.price?.product;
-  const periodStart = item?.current_period_start ?? subscription.current_period_start;
-  const periodEnd = item?.current_period_end ?? subscription.current_period_end;
 
-  await getSupabase().from("subscriptions").upsert(
+  const userId = session.metadata?.userId;
+  const monthsRaw = session.metadata?.months;
+  const months = Number(monthsRaw);
+  if (!userId || !months) {
+    console.error("Missing userId/months in checkout session metadata", session.id);
+    return;
+  }
+
+  // For Pix and other async methods, payment_status may still be "unpaid" here.
+  // Only extend access when actually paid.
+  if (session.payment_status !== "paid") {
+    console.log("Checkout session not yet paid", session.id, session.payment_status);
+    return;
+  }
+
+  const newExpires = await extendProfileAccess(userId, months);
+  console.log(`Extended access for ${userId} by ${months} months -> ${newExpires.toISOString()}`);
+
+  // Record purchase for history (use session.id as the synthetic subscription id)
+  const supabase = getSupabase();
+  await supabase.from("subscriptions").upsert(
     {
       user_id: userId,
-      stripe_subscription_id: subscription.id,
-      stripe_customer_id: subscription.customer,
-      product_id: productId,
-      price_id: priceId,
-      status: subscription.status,
-      current_period_start: periodStart ? new Date(periodStart * 1000).toISOString() : null,
-      current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+      stripe_subscription_id: session.id,
+      stripe_customer_id: session.customer || session.customer_details?.email || "guest",
+      product_id: `controla_pro_${months}m`,
+      price_id: `controla_pro_${months}m_price`,
+      status: "active",
+      current_period_start: new Date().toISOString(),
+      current_period_end: newExpires.toISOString(),
+      cancel_at_period_end: true, // one-time purchase, doesn't renew
       environment: env,
       updated_at: new Date().toISOString(),
     },
@@ -41,37 +88,15 @@ async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
   );
 }
 
-async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
-  const item = subscription.items?.data?.[0];
-  const priceId = item?.price?.metadata?.lovable_external_id || item?.price?.id;
-  const productId = item?.price?.product;
-  const periodStart = item?.current_period_start ?? subscription.current_period_start;
-  const periodEnd = item?.current_period_end ?? subscription.current_period_end;
-
-  await getSupabase()
-    .from("subscriptions")
-    .update({
-      status: subscription.status,
-      product_id: productId,
-      price_id: priceId,
-      current_period_start: periodStart ? new Date(periodStart * 1000).toISOString() : null,
-      current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-      cancel_at_period_end: subscription.cancel_at_period_end || false,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("stripe_subscription_id", subscription.id)
-    .eq("environment", env);
+// Pix payments are async — Stripe sends checkout.session.async_payment_succeeded
+// when the customer completes the Pix payment after closing the form.
+async function handleAsyncPaymentSucceeded(session: any, env: StripeEnv) {
+  // Same logic as completed-with-paid
+  await handleCheckoutSessionCompleted({ ...session, payment_status: "paid" }, env);
 }
 
-async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
-  await getSupabase()
-    .from("subscriptions")
-    .update({
-      status: "canceled",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("stripe_subscription_id", subscription.id)
-    .eq("environment", env);
+async function handleAsyncPaymentFailed(session: any) {
+  console.log("Async payment failed for session", session.id);
 }
 
 Deno.serve(async (req) => {
@@ -89,14 +114,14 @@ Deno.serve(async (req) => {
   try {
     const event = await verifyWebhook(req, env);
     switch (event.type) {
-      case "customer.subscription.created":
-        await handleSubscriptionCreated(event.data.object, env);
+      case "checkout.session.completed":
+        await handleCheckoutSessionCompleted(event.data.object, env);
         break;
-      case "customer.subscription.updated":
-        await handleSubscriptionUpdated(event.data.object, env);
+      case "checkout.session.async_payment_succeeded":
+        await handleAsyncPaymentSucceeded(event.data.object, env);
         break;
-      case "customer.subscription.deleted":
-        await handleSubscriptionDeleted(event.data.object, env);
+      case "checkout.session.async_payment_failed":
+        await handleAsyncPaymentFailed(event.data.object);
         break;
       default:
         console.log("Unhandled event:", event.type);
