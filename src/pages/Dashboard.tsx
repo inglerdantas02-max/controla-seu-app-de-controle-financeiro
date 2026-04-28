@@ -231,21 +231,26 @@ const Dashboard = () => {
     if (!user) return;
     const normalized = balanceInput.replace(/\./g, "").replace(",", ".");
     const value = Number(normalized);
-    if (Number.isNaN(value) || value < 0) {
+    if (Number.isNaN(value)) {
       toast({ title: "Valor inválido", description: "Informe um número válido.", variant: "destructive" });
+      return;
+    }
+    const newBalance = hasInitialBalanceSet ? initialBalance + value : value;
+    if (newBalance < 0) {
+      toast({ title: "Valor inválido", description: "O saldo total não pode ficar negativo.", variant: "destructive" });
       return;
     }
     setSavingBalance(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ initial_balance: value })
+      .update({ initial_balance: newBalance })
       .eq("id", user.id);
     setSavingBalance(false);
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
       return;
     }
-    setInitialBalance(value);
+    setInitialBalance(newBalance);
     setHasInitialBalanceSet(true);
     setBalanceDialogOpen(false);
     toast({ title: "Saldo atualizado", description: "Seu saldo atual foi atualizado." });
