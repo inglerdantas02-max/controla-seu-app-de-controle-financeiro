@@ -15,6 +15,7 @@ interface PendingTransaction {
   amount: number;
   category?: string;
   description?: string;
+  occurred_at?: string | null; // YYYY-MM-DD em Brasília, opcional
 }
 
 interface Msg {
