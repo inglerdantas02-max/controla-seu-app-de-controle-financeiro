@@ -129,12 +129,19 @@ const ChatAssistant = ({ open, onOpenChange, onTransactionSaved, initialAssistan
 
   const confirm = async (msgId: string, tx: PendingTransaction) => {
     if (!user) return;
+    let occurredAtISO: string | undefined;
+    if (tx.occurred_at && /^\d{4}-\d{2}-\d{2}$/.test(tx.occurred_at)) {
+      // Meio-dia em Brasília (UTC-3) = 15:00 UTC — evita virar de dia por fuso
+      const [y, m, d] = tx.occurred_at.split("-").map(Number);
+      occurredAtISO = new Date(Date.UTC(y, m - 1, d, 15, 0, 0)).toISOString();
+    }
     const { error } = await supabase.from("transactions").insert({
       user_id: user.id,
       type: tx.type,
       amount: tx.amount,
       category: tx.category || null,
       description: tx.description || null,
+      ...(occurredAtISO ? { occurred_at: occurredAtISO } : {}),
     });
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
