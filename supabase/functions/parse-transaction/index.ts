@@ -47,7 +47,11 @@ Deno.serve(async (req) => {
               amount: { type: "number", description: "Valor em reais (positivo)" },
               category: { type: "string" },
               description: { type: "string" },
-              reply: { type: "string", description: "Confirmação amigável em PT-BR, ex: 'Deseja registrar uma saída de R$30 com almoço?'" },
+              occurred_at: {
+                type: "string",
+                description: `Data da transação no formato YYYY-MM-DD (fuso Brasília). Hoje é ${today}. Use somente se o usuário indicar uma data diferente de hoje (ex: 'ontem', 'anteontem', 'na segunda', 'dia 12', '15/03'). Se não for indicada, OMITA este campo (será considerado hoje).`,
+              },
+              reply: { type: "string", description: "Confirmação amigável em PT-BR. Se houver data diferente de hoje, mencione (ex: 'Deseja registrar uma saída de R$30 com Uber em 27/04?')." },
             },
             required: ["type", "amount", "reply"],
             additionalProperties: false,
@@ -133,6 +137,15 @@ CATEGORIZAÇÃO AUTOMÁTICA — sempre preencha 'category' ao registrar:
 - Compras → roupa, eletrônico, presente
 - Outros → quando não se encaixar
 
+📅 DATA DA TRANSAÇÃO (occurred_at):
+- Hoje é ${today} (Brasília). Se o usuário NÃO mencionar data, OMITA o campo (será hoje).
+- Se mencionar data relativa, calcule e envie em YYYY-MM-DD:
+  • "ontem" → ontem; "anteontem" → 2 dias atrás
+  • "semana passada", "na segunda passada", "sexta passada" → calcule a data exata
+  • "dia 12", "no dia 5" → mesmo mês atual; se já passou bem demais, use o mês anterior só se o usuário deixar claro
+  • "12/03", "12/03/2026" → converta para YYYY-MM-DD
+- Quando confirmar a transação no 'reply', cite a data no formato DD/MM se for diferente de hoje.
+
 📥 ENTRADAS (income) — categorias padrão:
 - Salário → salário, holerite, pagamento mensal do trabalho
 - Vendas → vendi, venda de produto/serviço próprio
@@ -217,6 +230,7 @@ Para relatórios:
           amount: args.amount,
           category: args.category,
           description: args.description,
+          occurred_at: args.occurred_at || null,
           reply: args.reply,
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
