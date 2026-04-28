@@ -88,6 +88,10 @@ const Dashboard = () => {
   const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
   const [balanceInput, setBalanceInput] = useState<string>("");
   const [savingBalance, setSavingBalance] = useState(false);
+  const [balanceHidden, setBalanceHidden] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("balanceHidden") === "1";
+  });
   const [insight, setInsight] = useState<string | null>(null);
   const [insightSeen, setInsightSeen] = useState<boolean>(false);
   const [pendingInsightForChat, setPendingInsightForChat] = useState<string | null>(null);
