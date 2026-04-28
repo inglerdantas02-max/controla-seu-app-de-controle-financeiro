@@ -351,21 +351,41 @@ const Dashboard = () => {
 
         <div className="grid md:grid-cols-3 gap-4 mb-8">
           <div className="bg-gradient-primary text-primary-foreground p-6 rounded-3xl shadow-glow relative">
-            <button
-              type="button"
-              onClick={() => {
-                setBalanceInput(
-                  initialBalance ? String(initialBalance).replace(".", ",") : "",
-                );
-                setBalanceDialogOpen(true);
-              }}
-              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/15 transition-colors"
-              aria-label="Editar saldo atual"
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
+            <div className="absolute top-4 right-4 flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setBalanceHidden((prev) => {
+                    const next = !prev;
+                    try {
+                      window.localStorage.setItem("balanceHidden", next ? "1" : "0");
+                    } catch {}
+                    return next;
+                  });
+                }}
+                className="p-1.5 rounded-lg hover:bg-white/15 transition-colors"
+                aria-label={balanceHidden ? "Mostrar saldo" : "Ocultar saldo"}
+              >
+                {balanceHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBalanceInput(
+                    initialBalance ? String(initialBalance).replace(".", ",") : "",
+                  );
+                  setBalanceDialogOpen(true);
+                }}
+                className="p-1.5 rounded-lg hover:bg-white/15 transition-colors"
+                aria-label="Editar saldo atual"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+            </div>
             <p className="text-sm opacity-80 mb-1">Saldo atual</p>
-            <p className="font-display text-3xl font-bold">{formatBRL(totalBalance)}</p>
+            <p className="font-display text-3xl font-bold tracking-wider">
+              {balanceHidden ? "R$ ••••••" : formatBRL(totalBalance)}
+            </p>
           </div>
           <div className="bg-card border border-border p-6 rounded-3xl">
             <div className="flex items-center gap-2 mb-1">
