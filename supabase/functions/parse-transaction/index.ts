@@ -137,6 +137,15 @@ CATEGORIZAÇÃO AUTOMÁTICA — sempre preencha 'category' ao registrar:
 - Compras → roupa, eletrônico, presente
 - Outros → quando não se encaixar
 
+📅 DATA DA TRANSAÇÃO (occurred_at):
+- Hoje é ${today} (Brasília). Se o usuário NÃO mencionar data, OMITA o campo (será hoje).
+- Se mencionar data relativa, calcule e envie em YYYY-MM-DD:
+  • "ontem" → ontem; "anteontem" → 2 dias atrás
+  • "semana passada", "na segunda passada", "sexta passada" → calcule a data exata
+  • "dia 12", "no dia 5" → mesmo mês atual; se já passou bem demais, use o mês anterior só se o usuário deixar claro
+  • "12/03", "12/03/2026" → converta para YYYY-MM-DD
+- Quando confirmar a transação no 'reply', cite a data no formato DD/MM se for diferente de hoje.
+
 📥 ENTRADAS (income) — categorias padrão:
 - Salário → salário, holerite, pagamento mensal do trabalho
 - Vendas → vendi, venda de produto/serviço próprio
