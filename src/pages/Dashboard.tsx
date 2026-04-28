@@ -231,21 +231,26 @@ const Dashboard = () => {
     if (!user) return;
     const normalized = balanceInput.replace(/\./g, "").replace(",", ".");
     const value = Number(normalized);
-    if (Number.isNaN(value) || value < 0) {
+    if (Number.isNaN(value)) {
       toast({ title: "Valor inválido", description: "Informe um número válido.", variant: "destructive" });
+      return;
+    }
+    const newBalance = hasInitialBalanceSet ? initialBalance + value : value;
+    if (newBalance < 0) {
+      toast({ title: "Valor inválido", description: "O saldo total não pode ficar negativo.", variant: "destructive" });
       return;
     }
     setSavingBalance(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ initial_balance: value })
+      .update({ initial_balance: newBalance })
       .eq("id", user.id);
     setSavingBalance(false);
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
       return;
     }
-    setInitialBalance(value);
+    setInitialBalance(newBalance);
     setHasInitialBalanceSet(true);
     setBalanceDialogOpen(false);
     toast({ title: "Saldo atualizado", description: "Seu saldo atual foi atualizado." });
@@ -371,9 +376,7 @@ const Dashboard = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setBalanceInput(
-                    initialBalance ? String(initialBalance).replace(".", ",") : "",
-                  );
+                  setBalanceInput("");
                   setBalanceDialogOpen(true);
                 }}
                 className="p-1.5 rounded-lg hover:bg-white/15 transition-colors"
@@ -499,16 +502,16 @@ const Dashboard = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {hasInitialBalanceSet ? "Editar saldo atual" : "Bem-vindo! Qual é o seu saldo atual?"}
+              {hasInitialBalanceSet ? "Adicionar ao saldo atual" : "Bem-vindo! Qual é o seu saldo atual?"}
             </DialogTitle>
             <DialogDescription>
               {hasInitialBalanceSet
-                ? "Ajuste o valor do seu saldo. Isso não cria uma entrada no histórico."
+                ? `Seu saldo manual atual é ${formatBRL(initialBalance)}. O valor informado abaixo será somado a ele (use valor negativo para subtrair). Isso não cria entrada no histórico.`
                 : "Informe quanto você já tem em conta. Isso será seu ponto de partida e não conta como entrada."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
-            <Label htmlFor="initial-balance">Saldo (R$)</Label>
+            <Label htmlFor="initial-balance">{hasInitialBalanceSet ? "Valor a somar (R$)" : "Saldo (R$)"}</Label>
             <Input
               id="initial-balance"
               inputMode="decimal"
