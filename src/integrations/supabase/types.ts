@@ -84,6 +84,7 @@ export type Database = {
           expires_at: string | null
           full_name: string | null
           id: string
+          initial_balance: number
           plan_id: string | null
           status: string
           trial_end_date: string | null
@@ -96,6 +97,7 @@ export type Database = {
           expires_at?: string | null
           full_name?: string | null
           id: string
+          initial_balance?: number
           plan_id?: string | null
           status?: string
           trial_end_date?: string | null
@@ -108,6 +110,7 @@ export type Database = {
           expires_at?: string | null
           full_name?: string | null
           id?: string
+          initial_balance?: number
           plan_id?: string | null
           status?: string
           trial_end_date?: string | null

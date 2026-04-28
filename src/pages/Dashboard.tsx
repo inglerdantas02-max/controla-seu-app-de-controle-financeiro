@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Settings, Shield, MessageCircle, TrendingUp, TrendingDown, Inbox, Trash2, FileText, CalendarIcon } from "lucide-react";
+import { Settings, Shield, MessageCircle, TrendingUp, TrendingDown, Inbox, Trash2, FileText, CalendarIcon, Pencil } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -13,6 +13,9 @@ import { supabase } from "@/integrations/supabase/client";
 import ChatAssistant from "@/components/dashboard/ChatAssistant";
 import SettingsDialog from "@/components/dashboard/SettingsDialog";
 import ReportDialog from "@/components/dashboard/ReportDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import TrialBanner from "@/components/dashboard/TrialBanner";
 import Paywall from "@/pages/Paywall";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -80,6 +83,11 @@ const Dashboard = () => {
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const [fullName, setFullName] = useState<string>("");
+  const [initialBalance, setInitialBalance] = useState<number>(0);
+  const [hasInitialBalanceSet, setHasInitialBalanceSet] = useState<boolean>(true);
+  const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
+  const [balanceInput, setBalanceInput] = useState<string>("");
+  const [savingBalance, setSavingBalance] = useState(false);
   const [insight, setInsight] = useState<string | null>(null);
   const [insightSeen, setInsightSeen] = useState<boolean>(false);
   const [pendingInsightForChat, setPendingInsightForChat] = useState<string | null>(null);
@@ -101,10 +109,20 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle().then(({ data }) => {
-      setFullName(data?.full_name ?? "");
-    });
-  }, [user, settingsOpen]);
+    supabase
+      .from("profiles")
+      .select("full_name, initial_balance")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setFullName(data?.full_name ?? "");
+        const ib = data?.initial_balance != null ? Number(data.initial_balance) : 0;
+        setInitialBalance(ib);
+        // Considera "definido" se já tem valor != 0 OU se já temos transações (ver outro effect)
+        if (ib !== 0) setHasInitialBalanceSet(true);
+        else setHasInitialBalanceSet(false);
+      });
+  }, [user, settingsOpen, balanceDialogOpen]);
 
   useEffect(() => {
     if (!user) return;
@@ -188,12 +206,46 @@ const Dashboard = () => {
 
   const totalBalance = useMemo(
     () =>
+      initialBalance +
       txs.reduce(
         (s, t) => s + (t.type === "income" ? Number(t.amount) : -Number(t.amount)),
         0,
       ),
-    [txs],
+    [txs, initialBalance],
   );
+
+  // Onboarding: ao primeiro acesso (sem saldo definido E sem transações), abrir dialog
+  useEffect(() => {
+    if (loadingTxs) return;
+    if (!hasInitialBalanceSet && txs.length === 0 && !balanceDialogOpen) {
+      setBalanceInput("");
+      setBalanceDialogOpen(true);
+    }
+  }, [loadingTxs, hasInitialBalanceSet, txs.length, balanceDialogOpen]);
+
+  const saveInitialBalance = async () => {
+    if (!user) return;
+    const normalized = balanceInput.replace(/\./g, "").replace(",", ".");
+    const value = Number(normalized);
+    if (Number.isNaN(value) || value < 0) {
+      toast({ title: "Valor inválido", description: "Informe um número válido.", variant: "destructive" });
+      return;
+    }
+    setSavingBalance(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ initial_balance: value })
+      .eq("id", user.id);
+    setSavingBalance(false);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setInitialBalance(value);
+    setHasInitialBalanceSet(true);
+    setBalanceDialogOpen(false);
+    toast({ title: "Saldo atualizado", description: "Seu saldo atual foi atualizado." });
+  };
 
   if (loading || subLoading) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   if (!user) return <Navigate to="/auth" replace />;
@@ -294,7 +346,20 @@ const Dashboard = () => {
         </div>
 
         <div className="grid md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-gradient-primary text-primary-foreground p-6 rounded-3xl shadow-glow">
+          <div className="bg-gradient-primary text-primary-foreground p-6 rounded-3xl shadow-glow relative">
+            <button
+              type="button"
+              onClick={() => {
+                setBalanceInput(
+                  initialBalance ? String(initialBalance).replace(".", ",") : "",
+                );
+                setBalanceDialogOpen(true);
+              }}
+              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/15 transition-colors"
+              aria-label="Editar saldo atual"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
             <p className="text-sm opacity-80 mb-1">Saldo atual</p>
             <p className="font-display text-3xl font-bold">{formatBRL(totalBalance)}</p>
           </div>
@@ -405,6 +470,46 @@ const Dashboard = () => {
       />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <ReportDialog open={reportOpen} onOpenChange={setReportOpen} txs={filteredTxs} periodLabel={periodLabel} />
+
+      <Dialog open={balanceDialogOpen} onOpenChange={setBalanceDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {hasInitialBalanceSet ? "Editar saldo atual" : "Bem-vindo! Qual é o seu saldo atual?"}
+            </DialogTitle>
+            <DialogDescription>
+              {hasInitialBalanceSet
+                ? "Ajuste o valor do seu saldo. Isso não cria uma entrada no histórico."
+                : "Informe quanto você já tem em conta. Isso será seu ponto de partida e não conta como entrada."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="initial-balance">Saldo (R$)</Label>
+            <Input
+              id="initial-balance"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={balanceInput}
+              onChange={(e) => setBalanceInput(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            {hasInitialBalanceSet && (
+              <Button variant="outline" onClick={() => setBalanceDialogOpen(false)}>
+                Cancelar
+              </Button>
+            )}
+            <Button
+              variant="hero"
+              onClick={saveInitialBalance}
+              disabled={savingBalance || balanceInput.trim() === ""}
+            >
+              {savingBalance ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
