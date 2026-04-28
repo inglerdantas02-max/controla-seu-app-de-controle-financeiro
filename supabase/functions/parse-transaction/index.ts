@@ -221,6 +221,7 @@ Para relatórios:
           amount: args.amount,
           category: args.category,
           description: args.description,
+          occurred_at: args.occurred_at || null,
           reply: args.reply,
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
