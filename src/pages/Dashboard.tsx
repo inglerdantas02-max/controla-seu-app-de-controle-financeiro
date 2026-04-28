@@ -192,7 +192,14 @@ const Dashboard = () => {
 
   const income = filteredTxs.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
   const expense = filteredTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
-  const balance = income - expense;
+  const totalBalance = useMemo(
+    () =>
+      txs.reduce(
+        (s, t) => s + (t.type === "income" ? Number(t.amount) : -Number(t.amount)),
+        0,
+      ),
+    [txs],
+  );
 
   const firstName = (fullName || user.email?.split("@")[0] || "").trim().split(" ")[0];
   const capitalized = firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : "";
