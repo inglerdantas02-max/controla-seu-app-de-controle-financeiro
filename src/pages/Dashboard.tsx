@@ -186,12 +186,6 @@ const Dashboard = () => {
     return { filteredTxs: filtered, periodLabel: label };
   }, [txs, period, customDate]);
 
-  if (loading || subLoading) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
-  if (!user) return <Navigate to="/auth" replace />;
-  if (isBlocked) return <Paywall />;
-
-  const income = filteredTxs.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
-  const expense = filteredTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
   const totalBalance = useMemo(
     () =>
       txs.reduce(
@@ -200,6 +194,13 @@ const Dashboard = () => {
       ),
     [txs],
   );
+
+  if (loading || subLoading) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (isBlocked) return <Paywall />;
+
+  const income = filteredTxs.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
+  const expense = filteredTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
 
   const firstName = (fullName || user.email?.split("@")[0] || "").trim().split(" ")[0];
   const capitalized = firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : "";
