@@ -80,6 +80,11 @@ const Dashboard = () => {
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const [fullName, setFullName] = useState<string>("");
+  const [initialBalance, setInitialBalance] = useState<number>(0);
+  const [hasInitialBalanceSet, setHasInitialBalanceSet] = useState<boolean>(true);
+  const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
+  const [balanceInput, setBalanceInput] = useState<string>("");
+  const [savingBalance, setSavingBalance] = useState(false);
   const [insight, setInsight] = useState<string | null>(null);
   const [insightSeen, setInsightSeen] = useState<boolean>(false);
   const [pendingInsightForChat, setPendingInsightForChat] = useState<string | null>(null);
