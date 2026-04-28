@@ -115,7 +115,7 @@ const ChatAssistant = ({ open, onOpenChange, onTransactionSaved, initialAssistan
         role: "assistant",
         content: data.reply,
         pending: data.is_transaction && data.amount && data.type
-          ? { type: data.type, amount: data.amount, category: data.category, description: data.description }
+          ? { type: data.type, amount: data.amount, category: data.category, description: data.description, occurred_at: data.occurred_at }
           : undefined,
       };
       setMessages((p) => [...p, assistantMsg]);
