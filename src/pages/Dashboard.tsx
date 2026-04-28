@@ -203,12 +203,46 @@ const Dashboard = () => {
 
   const totalBalance = useMemo(
     () =>
+      initialBalance +
       txs.reduce(
         (s, t) => s + (t.type === "income" ? Number(t.amount) : -Number(t.amount)),
         0,
       ),
-    [txs],
+    [txs, initialBalance],
   );
+
+  // Onboarding: ao primeiro acesso (sem saldo definido E sem transações), abrir dialog
+  useEffect(() => {
+    if (loadingTxs) return;
+    if (!hasInitialBalanceSet && txs.length === 0 && !balanceDialogOpen) {
+      setBalanceInput("");
+      setBalanceDialogOpen(true);
+    }
+  }, [loadingTxs, hasInitialBalanceSet, txs.length, balanceDialogOpen]);
+
+  const saveInitialBalance = async () => {
+    if (!user) return;
+    const normalized = balanceInput.replace(/\./g, "").replace(",", ".");
+    const value = Number(normalized);
+    if (Number.isNaN(value) || value < 0) {
+      toast({ title: "Valor inválido", description: "Informe um número válido.", variant: "destructive" });
+      return;
+    }
+    setSavingBalance(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ initial_balance: value })
+      .eq("id", user.id);
+    setSavingBalance(false);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setInitialBalance(value);
+    setHasInitialBalanceSet(true);
+    setBalanceDialogOpen(false);
+    toast({ title: "Saldo atualizado", description: "Seu saldo atual foi atualizado." });
+  };
 
   if (loading || subLoading) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   if (!user) return <Navigate to="/auth" replace />;
