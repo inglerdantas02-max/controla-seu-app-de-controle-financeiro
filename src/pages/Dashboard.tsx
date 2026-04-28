@@ -106,10 +106,20 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle().then(({ data }) => {
-      setFullName(data?.full_name ?? "");
-    });
-  }, [user, settingsOpen]);
+    supabase
+      .from("profiles")
+      .select("full_name, initial_balance")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setFullName(data?.full_name ?? "");
+        const ib = data?.initial_balance != null ? Number(data.initial_balance) : 0;
+        setInitialBalance(ib);
+        // Considera "definido" se já tem valor != 0 OU se já temos transações (ver outro effect)
+        if (ib !== 0) setHasInitialBalanceSet(true);
+        else setHasInitialBalanceSet(false);
+      });
+  }, [user, settingsOpen, balanceDialogOpen]);
 
   useEffect(() => {
     if (!user) return;
