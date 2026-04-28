@@ -470,6 +470,46 @@ const Dashboard = () => {
       />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <ReportDialog open={reportOpen} onOpenChange={setReportOpen} txs={filteredTxs} periodLabel={periodLabel} />
+
+      <Dialog open={balanceDialogOpen} onOpenChange={setBalanceDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {hasInitialBalanceSet ? "Editar saldo atual" : "Bem-vindo! Qual é o seu saldo atual?"}
+            </DialogTitle>
+            <DialogDescription>
+              {hasInitialBalanceSet
+                ? "Ajuste o valor do seu saldo. Isso não cria uma entrada no histórico."
+                : "Informe quanto você já tem em conta. Isso será seu ponto de partida e não conta como entrada."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="initial-balance">Saldo (R$)</Label>
+            <Input
+              id="initial-balance"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={balanceInput}
+              onChange={(e) => setBalanceInput(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            {hasInitialBalanceSet && (
+              <Button variant="outline" onClick={() => setBalanceDialogOpen(false)}>
+                Cancelar
+              </Button>
+            )}
+            <Button
+              variant="hero"
+              onClick={saveInitialBalance}
+              disabled={savingBalance || balanceInput.trim() === ""}
+            >
+              {savingBalance ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
