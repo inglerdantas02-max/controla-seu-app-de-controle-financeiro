@@ -343,7 +343,20 @@ const Dashboard = () => {
         </div>
 
         <div className="grid md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-gradient-primary text-primary-foreground p-6 rounded-3xl shadow-glow">
+          <div className="bg-gradient-primary text-primary-foreground p-6 rounded-3xl shadow-glow relative">
+            <button
+              type="button"
+              onClick={() => {
+                setBalanceInput(
+                  initialBalance ? String(initialBalance).replace(".", ",") : "",
+                );
+                setBalanceDialogOpen(true);
+              }}
+              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/15 transition-colors"
+              aria-label="Editar saldo atual"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
             <p className="text-sm opacity-80 mb-1">Saldo atual</p>
             <p className="font-display text-3xl font-bold">{formatBRL(totalBalance)}</p>
           </div>
