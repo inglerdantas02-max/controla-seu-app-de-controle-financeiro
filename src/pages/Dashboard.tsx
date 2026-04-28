@@ -371,9 +371,7 @@ const Dashboard = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setBalanceInput(
-                    initialBalance ? String(initialBalance).replace(".", ",") : "",
-                  );
+                  setBalanceInput("");
                   setBalanceDialogOpen(true);
                 }}
                 className="p-1.5 rounded-lg hover:bg-white/15 transition-colors"
