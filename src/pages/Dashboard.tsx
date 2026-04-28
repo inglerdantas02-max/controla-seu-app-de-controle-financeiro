@@ -294,8 +294,8 @@ const Dashboard = () => {
 
         <div className="grid md:grid-cols-3 gap-4 mb-8">
           <div className="bg-gradient-primary text-primary-foreground p-6 rounded-3xl shadow-glow">
-            <p className="text-sm opacity-80 mb-1">Saldo {periodLabel.toLowerCase()}</p>
-            <p className="font-display text-3xl font-bold">{formatBRL(balance)}</p>
+            <p className="text-sm opacity-80 mb-1">Saldo atual</p>
+            <p className="font-display text-3xl font-bold">{formatBRL(totalBalance)}</p>
           </div>
           <div className="bg-card border border-border p-6 rounded-3xl">
             <div className="flex items-center gap-2 mb-1">
