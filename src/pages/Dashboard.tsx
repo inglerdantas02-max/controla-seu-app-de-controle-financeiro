@@ -192,7 +192,14 @@ const Dashboard = () => {
 
   const income = filteredTxs.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
   const expense = filteredTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
-  const balance = income - expense;
+  const totalBalance = useMemo(
+    () =>
+      txs.reduce(
+        (s, t) => s + (t.type === "income" ? Number(t.amount) : -Number(t.amount)),
+        0,
+      ),
+    [txs],
+  );
 
   const firstName = (fullName || user.email?.split("@")[0] || "").trim().split(" ")[0];
   const capitalized = firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : "";
@@ -287,8 +294,8 @@ const Dashboard = () => {
 
         <div className="grid md:grid-cols-3 gap-4 mb-8">
           <div className="bg-gradient-primary text-primary-foreground p-6 rounded-3xl shadow-glow">
-            <p className="text-sm opacity-80 mb-1">Saldo {periodLabel.toLowerCase()}</p>
-            <p className="font-display text-3xl font-bold">{formatBRL(balance)}</p>
+            <p className="text-sm opacity-80 mb-1">Saldo atual</p>
+            <p className="font-display text-3xl font-bold">{formatBRL(totalBalance)}</p>
           </div>
           <div className="bg-card border border-border p-6 rounded-3xl">
             <div className="flex items-center gap-2 mb-1">
