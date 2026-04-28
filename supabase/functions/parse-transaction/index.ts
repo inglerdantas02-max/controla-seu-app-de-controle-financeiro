@@ -47,7 +47,11 @@ Deno.serve(async (req) => {
               amount: { type: "number", description: "Valor em reais (positivo)" },
               category: { type: "string" },
               description: { type: "string" },
-              reply: { type: "string", description: "Confirmação amigável em PT-BR, ex: 'Deseja registrar uma saída de R$30 com almoço?'" },
+              occurred_at: {
+                type: "string",
+                description: `Data da transação no formato YYYY-MM-DD (fuso Brasília). Hoje é ${today}. Use somente se o usuário indicar uma data diferente de hoje (ex: 'ontem', 'anteontem', 'na segunda', 'dia 12', '15/03'). Se não for indicada, OMITA este campo (será considerado hoje).`,
+              },
+              reply: { type: "string", description: "Confirmação amigável em PT-BR. Se houver data diferente de hoje, mencione (ex: 'Deseja registrar uma saída de R$30 com Uber em 27/04?')." },
             },
             required: ["type", "amount", "reply"],
             additionalProperties: false,
