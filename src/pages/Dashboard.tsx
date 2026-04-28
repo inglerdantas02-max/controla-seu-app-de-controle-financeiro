@@ -502,16 +502,16 @@ const Dashboard = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {hasInitialBalanceSet ? "Editar saldo atual" : "Bem-vindo! Qual é o seu saldo atual?"}
+              {hasInitialBalanceSet ? "Adicionar ao saldo atual" : "Bem-vindo! Qual é o seu saldo atual?"}
             </DialogTitle>
             <DialogDescription>
               {hasInitialBalanceSet
-                ? "Ajuste o valor do seu saldo. Isso não cria uma entrada no histórico."
+                ? `Seu saldo manual atual é ${formatBRL(initialBalance)}. O valor informado abaixo será somado a ele (use valor negativo para subtrair). Isso não cria entrada no histórico.`
                 : "Informe quanto você já tem em conta. Isso será seu ponto de partida e não conta como entrada."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
-            <Label htmlFor="initial-balance">Saldo (R$)</Label>
+            <Label htmlFor="initial-balance">{hasInitialBalanceSet ? "Valor a somar (R$)" : "Saldo (R$)"}</Label>
             <Input
               id="initial-balance"
               inputMode="decimal"
