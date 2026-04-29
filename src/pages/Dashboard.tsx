@@ -466,7 +466,38 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Insights inteligentes do dia */}
+        {(localInsights.length > 0 || comparison) && (
+          <div className="mb-8 bg-card border border-border rounded-3xl p-5 animate-fade-in">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-2 h-2 rounded-full bg-gradient-primary animate-pulse" />
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Insights de hoje
+              </p>
+            </div>
+            <ul className="space-y-1.5">
+              {localInsights.map((line, i) => (
+                <li key={i} className="text-sm text-foreground/90">• {line}</li>
+              ))}
+              {comparison && (
+                <li
+                  className={cn(
+                    "text-sm font-medium mt-2",
+                    comparison.tone === "good" && "text-success",
+                    comparison.tone === "bad" && "text-danger",
+                    comparison.tone === "neutral" && "text-muted-foreground",
+                  )}
+                >
+                  {comparison.tone === "good" ? "📉 " : comparison.tone === "bad" ? "📈 " : "➖ "}
+                  {comparison.text}
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+
         <section>
+
           <h2 className="font-display text-xl font-bold mb-4">Movimentações recentes</h2>
           {loadingTxs ? (
             <p className="text-muted-foreground text-sm">Carregando...</p>
