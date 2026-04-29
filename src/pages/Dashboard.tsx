@@ -504,9 +504,9 @@ const Dashboard = () => {
           ) : filteredTxs.length === 0 ? (
             <div className="bg-card border border-dashed border-border rounded-3xl p-10 text-center">
               <Inbox className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-              <p className="font-semibold mb-1">Nenhuma movimentação no período</p>
+              <p className="font-semibold mb-1">Tudo vazio por aqui 👀</p>
               <p className="text-sm text-muted-foreground mb-4">
-                Comece registrando um gasto ou ganho com o assistente.
+                Que tal registrar seu primeiro gasto agora? Fale comigo ou digite para registrar 👇
               </p>
               <Button variant="hero" onClick={openChatWithInsight}>
                 <MessageCircle className="w-4 h-4" /> Abrir assistente
