@@ -45,12 +45,15 @@ export const Plans = () => {
   };
 
   return (
-    <section className="py-24 container">
-      <div className="text-center max-w-2xl mx-auto mb-16">
-        <h2 className="font-display text-4xl md:text-5xl font-bold mb-4">
-          Planos <span className="text-gradient">simples</span>
+    <section id="planos" className="py-20 sm:py-24 container">
+      <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-14">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/20 bg-primary/5 mb-4">
+          <span className="text-sm font-medium text-primary">7 dias grátis</span>
+        </div>
+        <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
+          Um plano <span className="text-gradient">simples e justo</span>
         </h2>
-        <p className="text-muted-foreground text-lg">Comece grátis. Evolua quando quiser.</p>
+        <p className="text-muted-foreground text-base sm:text-lg">Teste sem compromisso. Cancele quando quiser.</p>
       </div>
       <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
         {plans.map((plan, i) => {
