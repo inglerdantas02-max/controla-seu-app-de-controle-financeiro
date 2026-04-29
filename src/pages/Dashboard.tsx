@@ -23,6 +23,7 @@ import { useCheckout } from "@/hooks/useCheckout";
 import PastDueBanner from "@/components/dashboard/PastDueBanner";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -266,6 +267,62 @@ const Dashboard = () => {
   const firstName = (fullName || user.email?.split("@")[0] || "").trim().split(" ")[0];
   const capitalized = firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : "";
 
+  // === Inteligência: insights e comparação dia atual vs ontem (apenas dados locais) ===
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(todayStart.getDate() - 1);
+
+  const todayTxs = txs.filter((t) => new Date(t.occurred_at) >= todayStart);
+  const yesterdayTxs = txs.filter((t) => {
+    const d = new Date(t.occurred_at);
+    return d >= yesterdayStart && d < todayStart;
+  });
+
+  const todayIncome = todayTxs.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
+  const todayExpense = todayTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
+  const yesterdayExpense = yesterdayTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
+
+  // Maior categoria de gasto do dia
+  const todayExpenseByCat = todayTxs
+    .filter((t) => t.type === "expense")
+    .reduce<Record<string, number>>((acc, t) => {
+      const k = (t.category || "Outros").toString();
+      acc[k] = (acc[k] || 0) + Number(t.amount);
+      return acc;
+    }, {});
+  const topCategory = Object.entries(todayExpenseByCat).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+  // Mensagem dinâmica do topo
+  const headerMessage =
+    todayTxs.length === 0
+      ? `${capitalized || "Olá"}, você ainda não registrou nada hoje 👀\nFale comigo e comece agora 👇`
+      : `Boa, ${capitalized || "tudo certo"}! Você já registrou ${todayTxs.length} ${todayTxs.length === 1 ? "movimentação" : "movimentações"} hoje 🔥`;
+
+  // Insights automáticos (frases curtas)
+  const localInsights: string[] = [];
+  if (todayTxs.length === 0) {
+    localInsights.push("Seu dia ainda está sem movimentações.");
+  } else {
+    if (todayExpense > 0) localInsights.push(`Hoje você gastou ${formatBRL(todayExpense)}.`);
+    if (topCategory && todayExpense > 0) localInsights.push(`Seu maior gasto foi com ${topCategory}.`);
+    if (todayIncome > 0) localInsights.push(`Você recebeu ${formatBRL(todayIncome)} hoje.`);
+  }
+
+  // Comparação com ontem (apenas se houver dado de ontem)
+  let comparison: { text: string; tone: "good" | "bad" | "neutral" } | null = null;
+  if (yesterdayExpense > 0 && (todayExpense > 0 || todayTxs.length > 0)) {
+    if (todayExpense > yesterdayExpense) {
+      const pct = Math.round(((todayExpense - yesterdayExpense) / yesterdayExpense) * 100);
+      comparison = { text: `Seu gasto aumentou ${pct}% em relação a ontem.`, tone: "bad" };
+    } else if (todayExpense < yesterdayExpense) {
+      const saved = yesterdayExpense - todayExpense;
+      comparison = { text: `Boa! Hoje você economizou ${formatBRL(saved)} em relação a ontem.`, tone: "good" };
+    } else {
+      comparison = { text: "Você gastou o mesmo valor de ontem.", tone: "neutral" };
+    }
+  }
+
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <nav className="border-b border-border bg-background/80 backdrop-blur sticky top-0 z-30">
@@ -295,11 +352,14 @@ const Dashboard = () => {
             <h1 className="font-display text-3xl md:text-4xl font-bold mb-1">
               Olá{capitalized ? `, ${capitalized}` : ""} 👋
             </h1>
-            <p className="text-muted-foreground text-sm">
-              {filteredTxs.length === 0
-                ? "Toque no botão abaixo e comece registrando seu primeiro gasto ou ganho."
-                : `Resumo • ${periodLabel.toLowerCase()}`}
+            <p className="text-muted-foreground text-sm whitespace-pre-line">
+              {headerMessage}
             </p>
+            {filteredTxs.length > 0 && (
+              <p className="text-muted-foreground/80 text-xs mt-1">
+                Resumo • {periodLabel.toLowerCase()}
+              </p>
+            )}
           </div>
           <Button onClick={() => setReportOpen(true)} variant="outline" size="sm" className="self-start sm:self-auto">
             <FileText className="w-4 h-4" /> Gerar relatório
@@ -406,16 +466,47 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Insights inteligentes do dia */}
+        {(localInsights.length > 0 || comparison) && (
+          <div className="mb-8 bg-card border border-border rounded-3xl p-5 animate-fade-in">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-2 h-2 rounded-full bg-gradient-primary animate-pulse" />
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Insights de hoje
+              </p>
+            </div>
+            <ul className="space-y-1.5">
+              {localInsights.map((line, i) => (
+                <li key={i} className="text-sm text-foreground/90">• {line}</li>
+              ))}
+              {comparison && (
+                <li
+                  className={cn(
+                    "text-sm font-medium mt-2",
+                    comparison.tone === "good" && "text-success",
+                    comparison.tone === "bad" && "text-danger",
+                    comparison.tone === "neutral" && "text-muted-foreground",
+                  )}
+                >
+                  {comparison.tone === "good" ? "📉 " : comparison.tone === "bad" ? "📈 " : "➖ "}
+                  {comparison.text}
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+
         <section>
+
           <h2 className="font-display text-xl font-bold mb-4">Movimentações recentes</h2>
           {loadingTxs ? (
             <p className="text-muted-foreground text-sm">Carregando...</p>
           ) : filteredTxs.length === 0 ? (
             <div className="bg-card border border-dashed border-border rounded-3xl p-10 text-center">
               <Inbox className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-              <p className="font-semibold mb-1">Nenhuma movimentação no período</p>
+              <p className="font-semibold mb-1">Tudo vazio por aqui 👀</p>
               <p className="text-sm text-muted-foreground mb-4">
-                Comece registrando um gasto ou ganho com o assistente.
+                Que tal registrar seu primeiro gasto agora? Fale comigo ou digite para registrar 👇
               </p>
               <Button variant="hero" onClick={openChatWithInsight}>
                 <MessageCircle className="w-4 h-4" /> Abrir assistente
@@ -475,19 +566,26 @@ const Dashboard = () => {
         </section>
       </main>
 
-      <button
-        onClick={openChatWithInsight}
-        aria-label={insight && !insightSeen ? "Novo insight do assistente" : "Abrir assistente"}
-        className="fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full bg-gradient-primary text-primary-foreground shadow-glow flex items-center justify-center hover:scale-110 transition-transform animate-pulse-glow"
-      >
-        <MessageCircle className="w-7 h-7" />
-        <span className="absolute inset-0 rounded-full bg-primary/40 animate-ping -z-10" />
-        {insight && !insightSeen && (
-          <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1.5 rounded-full bg-danger text-danger-foreground text-[11px] font-bold flex items-center justify-center border-2 border-background shadow-lg animate-bounce">
-            1
-          </span>
-        )}
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={openChatWithInsight}
+            aria-label={insight && !insightSeen ? "Novo insight do assistente" : "Registrar gasto ou entrada"}
+            className="fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full bg-gradient-primary text-primary-foreground shadow-glow flex items-center justify-center hover:scale-110 transition-transform animate-pulse-glow"
+          >
+            <MessageCircle className="w-7 h-7" />
+            <span className="absolute inset-0 rounded-full bg-primary/40 animate-ping -z-10" />
+            {insight && !insightSeen && (
+              <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1.5 rounded-full bg-danger text-danger-foreground text-[11px] font-bold flex items-center justify-center border-2 border-background shadow-lg animate-bounce">
+                1
+              </span>
+            )}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="left" sideOffset={8}>
+          Registrar gasto ou entrada
+        </TooltipContent>
+      </Tooltip>
 
       <ChatAssistant
         open={chatOpen}
