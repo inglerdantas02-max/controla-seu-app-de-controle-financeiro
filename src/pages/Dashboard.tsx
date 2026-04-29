@@ -23,6 +23,7 @@ import { useCheckout } from "@/hooks/useCheckout";
 import PastDueBanner from "@/components/dashboard/PastDueBanner";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
