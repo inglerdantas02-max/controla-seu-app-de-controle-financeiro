@@ -352,11 +352,14 @@ const Dashboard = () => {
             <h1 className="font-display text-3xl md:text-4xl font-bold mb-1">
               Olá{capitalized ? `, ${capitalized}` : ""} 👋
             </h1>
-            <p className="text-muted-foreground text-sm">
-              {filteredTxs.length === 0
-                ? "Toque no botão abaixo e comece registrando seu primeiro gasto ou ganho."
-                : `Resumo • ${periodLabel.toLowerCase()}`}
+            <p className="text-muted-foreground text-sm whitespace-pre-line">
+              {headerMessage}
             </p>
+            {filteredTxs.length > 0 && (
+              <p className="text-muted-foreground/80 text-xs mt-1">
+                Resumo • {periodLabel.toLowerCase()}
+              </p>
+            )}
           </div>
           <Button onClick={() => setReportOpen(true)} variant="outline" size="sm" className="self-start sm:self-auto">
             <FileText className="w-4 h-4" /> Gerar relatório
