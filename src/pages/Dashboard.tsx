@@ -267,6 +267,62 @@ const Dashboard = () => {
   const firstName = (fullName || user.email?.split("@")[0] || "").trim().split(" ")[0];
   const capitalized = firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : "";
 
+  // === Inteligência: insights e comparação dia atual vs ontem (apenas dados locais) ===
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(todayStart.getDate() - 1);
+
+  const todayTxs = txs.filter((t) => new Date(t.occurred_at) >= todayStart);
+  const yesterdayTxs = txs.filter((t) => {
+    const d = new Date(t.occurred_at);
+    return d >= yesterdayStart && d < todayStart;
+  });
+
+  const todayIncome = todayTxs.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
+  const todayExpense = todayTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
+  const yesterdayExpense = yesterdayTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
+
+  // Maior categoria de gasto do dia
+  const todayExpenseByCat = todayTxs
+    .filter((t) => t.type === "expense")
+    .reduce<Record<string, number>>((acc, t) => {
+      const k = (t.category || "Outros").toString();
+      acc[k] = (acc[k] || 0) + Number(t.amount);
+      return acc;
+    }, {});
+  const topCategory = Object.entries(todayExpenseByCat).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+  // Mensagem dinâmica do topo
+  const headerMessage =
+    todayTxs.length === 0
+      ? `${capitalized || "Olá"}, você ainda não registrou nada hoje 👀\nFale comigo e comece agora 👇`
+      : `Boa, ${capitalized || "tudo certo"}! Você já registrou ${todayTxs.length} ${todayTxs.length === 1 ? "movimentação" : "movimentações"} hoje 🔥`;
+
+  // Insights automáticos (frases curtas)
+  const localInsights: string[] = [];
+  if (todayTxs.length === 0) {
+    localInsights.push("Seu dia ainda está sem movimentações.");
+  } else {
+    if (todayExpense > 0) localInsights.push(`Hoje você gastou ${formatBRL(todayExpense)}.`);
+    if (topCategory && todayExpense > 0) localInsights.push(`Seu maior gasto foi com ${topCategory}.`);
+    if (todayIncome > 0) localInsights.push(`Você recebeu ${formatBRL(todayIncome)} hoje.`);
+  }
+
+  // Comparação com ontem (apenas se houver dado de ontem)
+  let comparison: { text: string; tone: "good" | "bad" | "neutral" } | null = null;
+  if (yesterdayExpense > 0 && (todayExpense > 0 || todayTxs.length > 0)) {
+    if (todayExpense > yesterdayExpense) {
+      const pct = Math.round(((todayExpense - yesterdayExpense) / yesterdayExpense) * 100);
+      comparison = { text: `Seu gasto aumentou ${pct}% em relação a ontem.`, tone: "bad" };
+    } else if (todayExpense < yesterdayExpense) {
+      const saved = yesterdayExpense - todayExpense;
+      comparison = { text: `Boa! Hoje você economizou ${formatBRL(saved)} em relação a ontem.`, tone: "good" };
+    } else {
+      comparison = { text: "Você gastou o mesmo valor de ontem.", tone: "neutral" };
+    }
+  }
+
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <nav className="border-b border-border bg-background/80 backdrop-blur sticky top-0 z-30">
