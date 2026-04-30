@@ -96,6 +96,8 @@ const Dashboard = () => {
   const [insight, setInsight] = useState<string | null>(null);
   const [insightSeen, setInsightSeen] = useState<boolean>(false);
   const [pendingInsightForChat, setPendingInsightForChat] = useState<string | null>(null);
+  const [pendingChatPrompt, setPendingChatPrompt] = useState<string | null>(null);
+  const [coachInsights, setCoachInsights] = useState<Array<{ id: string; text: string; tone: "danger" | "warning" | "success" | "info"; action?: string }>>([]);
 
   const loadTxs = useCallback(async () => {
     if (!user) return;
