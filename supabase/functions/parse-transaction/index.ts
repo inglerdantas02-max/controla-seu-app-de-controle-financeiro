@@ -34,6 +34,18 @@ Deno.serve(async (req) => {
 
     const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split("T")[0];
 
+    // Personalização: nome do usuário
+    let firstName = "";
+    try {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      firstName = ((prof?.full_name || "").trim().split(" ")[0] || "")
+        .replace(/^./, (c: string) => c.toUpperCase());
+    } catch {}
+
     // Memória inteligente: top categorias usadas pelo usuário (últimos 90 dias)
     let userCategoriesHint = "";
     try {
