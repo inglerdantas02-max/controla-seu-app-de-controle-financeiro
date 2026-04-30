@@ -34,6 +34,18 @@ Deno.serve(async (req) => {
 
     const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split("T")[0];
 
+    // Personalização: nome do usuário
+    let firstName = "";
+    try {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      firstName = ((prof?.full_name || "").trim().split(" ")[0] || "")
+        .replace(/^./, (c: string) => c.toUpperCase());
+    } catch {}
+
     // Memória inteligente: top categorias usadas pelo usuário (últimos 90 dias)
     let userCategoriesHint = "";
     try {
@@ -136,7 +148,7 @@ Deno.serve(async (req) => {
     const messages: any[] = [
       {
         role: "system",
-        content: `Você é o assistente financeiro pessoal do app CONTROLA — inteligente, preciso, proativo e amigável. Hoje é ${today} (fuso Brasília).
+        content: `Você é o assistente financeiro pessoal do app CONTROLA — inteligente, preciso, proativo e amigável. Hoje é ${today} (fuso Brasília).${firstName ? `\n\n👤 USUÁRIO: ${firstName}. Use o nome dele com naturalidade (1 a cada 2-3 mensagens, no início da frase). Ex: "${firstName}, hoje você foi bem 🔥". NUNCA force o nome em toda resposta.` : ""}
 
 🧠 SUA MISSÃO: não apenas registrar dados — entender, analisar e orientar o usuário sobre a vida financeira dele.
 

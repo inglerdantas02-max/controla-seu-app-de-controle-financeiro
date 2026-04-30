@@ -96,6 +96,8 @@ const Dashboard = () => {
   const [insight, setInsight] = useState<string | null>(null);
   const [insightSeen, setInsightSeen] = useState<boolean>(false);
   const [pendingInsightForChat, setPendingInsightForChat] = useState<string | null>(null);
+  const [pendingChatPrompt, setPendingChatPrompt] = useState<string | null>(null);
+  const [coachInsights, setCoachInsights] = useState<Array<{ id: string; text: string; tone: "danger" | "warning" | "success" | "info"; action?: string }>>([]);
 
   const loadTxs = useCallback(async () => {
     if (!user) return;
@@ -150,6 +152,7 @@ const Dashboard = () => {
         if (text !== prev) setInsightSeen(false);
         return text;
       });
+      setCoachInsights(Array.isArray(data?.insights) ? data.insights : []);
     } catch (e) {
       // silencioso
     }
@@ -166,6 +169,13 @@ const Dashboard = () => {
     } else {
       setPendingInsightForChat(null);
     }
+    setPendingChatPrompt(null);
+    setChatOpen(true);
+  };
+
+  const openChatWith = (prompt: string) => {
+    setPendingInsightForChat(null);
+    setPendingChatPrompt(prompt);
     setChatOpen(true);
   };
 
@@ -466,33 +476,91 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Insights inteligentes do dia */}
-        {(localInsights.length > 0 || comparison) && (
+        {/* Coach financeiro: insights inteligentes do dia */}
+        {(coachInsights.length > 0 || localInsights.length > 0 || comparison) && (
           <div className="mb-8 bg-card border border-border rounded-3xl p-5 animate-fade-in">
             <div className="flex items-center gap-2 mb-3">
               <span className="w-2 h-2 rounded-full bg-gradient-primary animate-pulse" />
               <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Insights de hoje
+                Coach financeiro
               </p>
             </div>
-            <ul className="space-y-1.5">
-              {localInsights.map((line, i) => (
-                <li key={i} className="text-sm text-foreground/90">• {line}</li>
-              ))}
-              {comparison && (
-                <li
-                  className={cn(
-                    "text-sm font-medium mt-2",
-                    comparison.tone === "good" && "text-success",
-                    comparison.tone === "bad" && "text-danger",
-                    comparison.tone === "neutral" && "text-muted-foreground",
-                  )}
-                >
-                  {comparison.tone === "good" ? "📉 " : comparison.tone === "bad" ? "📈 " : "➖ "}
-                  {comparison.text}
-                </li>
-              )}
-            </ul>
+
+            {/* Insights inteligentes do servidor (com ação clicável) */}
+            {coachInsights.length > 0 && (
+              <ul className="space-y-2 mb-3">
+                {coachInsights.slice(0, 3).map((ci) => (
+                  <li
+                    key={ci.id}
+                    className={cn(
+                      "rounded-2xl p-3 border text-sm",
+                      ci.tone === "danger" && "bg-danger/10 border-danger/30 text-foreground",
+                      ci.tone === "warning" && "bg-yellow-500/10 border-yellow-500/30 text-foreground",
+                      ci.tone === "success" && "bg-success/10 border-success/30 text-foreground",
+                      ci.tone === "info" && "bg-muted border-border text-foreground/90",
+                    )}
+                  >
+                    <p className="leading-snug whitespace-pre-line">{ci.text}</p>
+                    {ci.action && (
+                      <button
+                        type="button"
+                        onClick={() => openChatWith(ci.action!)}
+                        className="mt-2 text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        <MessageCircle className="w-3 h-3" /> {ci.action}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* Resumo local rápido (já calculado no client) */}
+            {(localInsights.length > 0 || comparison) && (
+              <ul className="space-y-1.5">
+                {localInsights.map((line, i) => (
+                  <li key={i} className="text-sm text-foreground/90">• {line}</li>
+                ))}
+                {comparison && (
+                  <li
+                    className={cn(
+                      "text-sm font-medium mt-2",
+                      comparison.tone === "good" && "text-success",
+                      comparison.tone === "bad" && "text-danger",
+                      comparison.tone === "neutral" && "text-muted-foreground",
+                    )}
+                  >
+                    {comparison.tone === "good" ? "📉 " : comparison.tone === "bad" ? "📈 " : "➖ "}
+                    {comparison.text}
+                  </li>
+                )}
+              </ul>
+            )}
+
+            {/* CTAs sugeridos */}
+            <div className="flex flex-wrap gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => openChatWith("Me mostra o resumo de hoje")}
+                className="text-xs px-3 py-1.5 rounded-full bg-muted hover:bg-muted/70 transition-colors"
+              >
+                📊 Resumo de hoje
+              </button>
+              <button
+                type="button"
+                onClick={() => openChatWith("Como tá indo minha semana?")}
+                className="text-xs px-3 py-1.5 rounded-full bg-muted hover:bg-muted/70 transition-colors"
+              >
+                📅 Minha semana
+              </button>
+              <button
+                type="button"
+                onClick={() => openChatWith("Quanto sobrou pra mim esse mês?")}
+                className="text-xs px-3 py-1.5 rounded-full bg-muted hover:bg-muted/70 transition-colors"
+              >
+                💰 Saldo do mês
+              </button>
+            </div>
           </div>
         )}
 
@@ -589,9 +657,16 @@ const Dashboard = () => {
 
       <ChatAssistant
         open={chatOpen}
-        onOpenChange={(o) => { setChatOpen(o); if (!o) setPendingInsightForChat(null); }}
+        onOpenChange={(o) => {
+          setChatOpen(o);
+          if (!o) {
+            setPendingInsightForChat(null);
+            setPendingChatPrompt(null);
+          }
+        }}
         onTransactionSaved={loadTxs}
         initialAssistantMessage={pendingInsightForChat}
+        pendingPrompt={pendingChatPrompt}
       />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <ReportDialog open={reportOpen} onOpenChange={setReportOpen} txs={filteredTxs} periodLabel={periodLabel} />

@@ -32,9 +32,10 @@ interface Props {
   onOpenChange: (o: boolean) => void;
   onTransactionSaved: () => void;
   initialAssistantMessage?: string | null;
+  pendingPrompt?: string | null;
 }
 
-const ChatAssistant = ({ open, onOpenChange, onTransactionSaved, initialAssistantMessage }: Props) => {
+const ChatAssistant = ({ open, onOpenChange, onTransactionSaved, initialAssistantMessage, pendingPrompt }: Props) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([
     {
@@ -59,6 +60,22 @@ const ChatAssistant = ({ open, onOpenChange, onTransactionSaved, initialAssistan
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRowRef = useRef<HTMLDivElement>(null);
+  const lastSentPromptRef = useRef<string | null>(null);
+
+  // Auto-envia uma pergunta sugerida (vinda do dashboard) ao abrir o chat
+  useEffect(() => {
+    if (!open) {
+      lastSentPromptRef.current = null;
+      return;
+    }
+    if (!pendingPrompt) return;
+    if (lastSentPromptRef.current === pendingPrompt) return;
+    lastSentPromptRef.current = pendingPrompt;
+    // pequeno delay para o dialog terminar de montar
+    const t = setTimeout(() => { void send(pendingPrompt); }, 150);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, pendingPrompt]);
 
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
     // ScrollArea uses a viewport child for scrolling
