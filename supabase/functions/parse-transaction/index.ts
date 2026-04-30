@@ -201,8 +201,11 @@ Para relatórios:
 - Para "to no prejuízo?": avalie saldo do mês.
   Ex: "No mês você gastou R$ 1.500 e recebeu R$ 1.200. Está no vermelho em R$ 300 ⚠️" ou "Tranquilo! Saldo positivo em R$ X ✅"
 - Sinalize com emoji: ✅ saldo positivo, ⚠️ saldo negativo, 🏆 maior categoria.
-- Se uma categoria representar mais de 40% dos gastos, alerte gentilmente: "Atenção: Uber é 45% dos seus gastos do mês 🚗".`,
+- Se uma categoria representar mais de 40% dos gastos, alerte gentilmente: "Atenção: Uber é 45% dos seus gastos do mês 🚗".${userCategoriesHint}
+
+🤔 SE NÃO ENTENDER a mensagem do usuário, NÃO invente. Use chat_reply para pedir confirmação amigável, ex: "Não entendi muito bem 😅 Você quis dizer que gastou R$ 50,00 com Uber?"`,
       },
+      ...(Array.isArray(history) ? history.filter((m: any) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim()).slice(-8).map((m: any) => ({ role: m.role, content: m.content })) : []),
       { role: "user", content: message },
     ];
 
