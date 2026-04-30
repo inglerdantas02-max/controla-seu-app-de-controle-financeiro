@@ -247,9 +247,11 @@ const Dashboard = () => {
       toast({ title: "Valor inválido", description: "Informe um número válido.", variant: "destructive" });
       return;
     }
-    const newBalance = hasInitialBalanceSet ? initialBalance + value : value;
+    // Em "replace" (ou primeira vez), o valor digitado vira o saldo manual.
+    // Em "add", soma ao saldo manual existente.
+    const newBalance = (hasInitialBalanceSet && balanceMode === "add") ? initialBalance + value : value;
     if (newBalance < 0) {
-      toast({ title: "Valor inválido", description: "O saldo total não pode ficar negativo.", variant: "destructive" });
+      toast({ title: "Valor inválido", description: "O saldo não pode ficar negativo.", variant: "destructive" });
       return;
     }
     setSavingBalance(true);
