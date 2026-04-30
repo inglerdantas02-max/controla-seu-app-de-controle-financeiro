@@ -88,6 +88,7 @@ const Dashboard = () => {
   const [hasInitialBalanceSet, setHasInitialBalanceSet] = useState<boolean>(true);
   const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
   const [balanceInput, setBalanceInput] = useState<string>("");
+  const [balanceMode, setBalanceMode] = useState<"add" | "replace">("add");
   const [savingBalance, setSavingBalance] = useState(false);
   const [balanceHidden, setBalanceHidden] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -246,9 +247,11 @@ const Dashboard = () => {
       toast({ title: "Valor inválido", description: "Informe um número válido.", variant: "destructive" });
       return;
     }
-    const newBalance = hasInitialBalanceSet ? initialBalance + value : value;
+    // Em "replace" (ou primeira vez), o valor digitado vira o saldo manual.
+    // Em "add", soma ao saldo manual existente.
+    const newBalance = (hasInitialBalanceSet && balanceMode === "add") ? initialBalance + value : value;
     if (newBalance < 0) {
-      toast({ title: "Valor inválido", description: "O saldo total não pode ficar negativo.", variant: "destructive" });
+      toast({ title: "Valor inválido", description: "O saldo não pode ficar negativo.", variant: "destructive" });
       return;
     }
     setSavingBalance(true);
@@ -447,6 +450,7 @@ const Dashboard = () => {
                 type="button"
                 onClick={() => {
                   setBalanceInput("");
+                  setBalanceMode("add");
                   setBalanceDialogOpen(true);
                 }}
                 className="p-1.5 rounded-lg hover:bg-white/15 transition-colors"
@@ -675,16 +679,32 @@ const Dashboard = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {hasInitialBalanceSet ? "Adicionar ao saldo atual" : "Bem-vindo! Qual é o seu saldo atual?"}
+              {hasInitialBalanceSet ? "Editar saldo atual" : "Bem-vindo! Qual é o seu saldo atual?"}
             </DialogTitle>
             <DialogDescription>
               {hasInitialBalanceSet
-                ? `Seu saldo manual atual é ${formatBRL(initialBalance)}. O valor informado abaixo será somado a ele (use valor negativo para subtrair). Isso não cria entrada no histórico.`
+                ? `Saldo manual atual: ${formatBRL(initialBalance)}. Escolha somar um valor ou substituir pelo valor correto.`
                 : "Informe quanto você já tem em conta. Isso será seu ponto de partida e não conta como entrada."}
             </DialogDescription>
           </DialogHeader>
+
+          {hasInitialBalanceSet && (
+            <Tabs value={balanceMode} onValueChange={(v) => { setBalanceMode(v as "add" | "replace"); setBalanceInput(""); }} className="w-full">
+              <TabsList className="grid grid-cols-2 w-full">
+                <TabsTrigger value="add">Somar</TabsTrigger>
+                <TabsTrigger value="replace">Substituir</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+
           <div className="space-y-2 py-2">
-            <Label htmlFor="initial-balance">{hasInitialBalanceSet ? "Valor a somar (R$)" : "Saldo (R$)"}</Label>
+            <Label htmlFor="initial-balance">
+              {!hasInitialBalanceSet
+                ? "Saldo (R$)"
+                : balanceMode === "add"
+                  ? "Valor a somar (R$)"
+                  : "Novo saldo (R$)"}
+            </Label>
             <Input
               id="initial-balance"
               inputMode="decimal"
@@ -693,6 +713,11 @@ const Dashboard = () => {
               onChange={(e) => setBalanceInput(e.target.value)}
               autoFocus
             />
+            {hasInitialBalanceSet && balanceMode === "replace" && (
+              <p className="text-xs text-muted-foreground">
+                ⚠️ O saldo manual atual de {formatBRL(initialBalance)} será descartado e substituído pelo valor informado. As suas movimentações continuam preservadas.
+              </p>
+            )}
           </div>
           <DialogFooter className="gap-2">
             {hasInitialBalanceSet && (
@@ -705,7 +730,7 @@ const Dashboard = () => {
               onClick={saveInitialBalance}
               disabled={savingBalance || balanceInput.trim() === ""}
             >
-              {savingBalance ? "Salvando..." : "Salvar"}
+              {savingBalance ? "Salvando..." : balanceMode === "replace" && hasInitialBalanceSet ? "Substituir" : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
