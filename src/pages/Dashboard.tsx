@@ -88,6 +88,7 @@ const Dashboard = () => {
   const [hasInitialBalanceSet, setHasInitialBalanceSet] = useState<boolean>(true);
   const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
   const [balanceInput, setBalanceInput] = useState<string>("");
+  const [balanceMode, setBalanceMode] = useState<"add" | "replace">("add");
   const [savingBalance, setSavingBalance] = useState(false);
   const [balanceHidden, setBalanceHidden] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
