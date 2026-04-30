@@ -657,9 +657,16 @@ const Dashboard = () => {
 
       <ChatAssistant
         open={chatOpen}
-        onOpenChange={(o) => { setChatOpen(o); if (!o) setPendingInsightForChat(null); }}
+        onOpenChange={(o) => {
+          setChatOpen(o);
+          if (!o) {
+            setPendingInsightForChat(null);
+            setPendingChatPrompt(null);
+          }
+        }}
         onTransactionSaved={loadTxs}
         initialAssistantMessage={pendingInsightForChat}
+        pendingPrompt={pendingChatPrompt}
       />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <ReportDialog open={reportOpen} onOpenChange={setReportOpen} txs={filteredTxs} periodLabel={periodLabel} />
