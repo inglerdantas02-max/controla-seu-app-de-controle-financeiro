@@ -5,7 +5,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { message } = await req.json();
+    const { message, history } = await req.json();
     if (!message || typeof message !== "string") {
       return new Response(JSON.stringify({ error: "Mensagem inválida" }), {
         status: 400,
@@ -33,6 +33,36 @@ Deno.serve(async (req) => {
     }
 
     const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+    // Memória inteligente: top categorias usadas pelo usuário (últimos 90 dias)
+    let userCategoriesHint = "";
+    try {
+      const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentTx } = await supabase
+        .from("transactions")
+        .select("type, category")
+        .eq("user_id", user.id)
+        .gte("occurred_at", since)
+        .not("category", "is", null)
+        .limit(500);
+      if (recentTx && recentTx.length) {
+        const expCats: Record<string, number> = {};
+        const incCats: Record<string, number> = {};
+        for (const t of recentTx as any[]) {
+          const bag = t.type === "income" ? incCats : expCats;
+          bag[t.category] = (bag[t.category] || 0) + 1;
+        }
+        const top = (b: Record<string, number>) =>
+          Object.entries(b).sort((a, c) => c[1] - a[1]).slice(0, 8).map(([k]) => k);
+        const e = top(expCats), i = top(incCats);
+        const parts: string[] = [];
+        if (e.length) parts.push(`Saídas frequentes: ${e.join(", ")}`);
+        if (i.length) parts.push(`Entradas frequentes: ${i.join(", ")}`);
+        if (parts.length) userCategoriesHint = `\n\n🧠 MEMÓRIA DO USUÁRIO — REUTILIZE estas categorias quando fizer sentido (mantém padrão):\n${parts.join("\n")}`;
+      }
+    } catch (e) {
+      console.warn("[memory] could not load user categories", e);
+    }
 
     const tools = [
       {
@@ -171,8 +201,11 @@ Para relatórios:
 - Para "to no prejuízo?": avalie saldo do mês.
   Ex: "No mês você gastou R$ 1.500 e recebeu R$ 1.200. Está no vermelho em R$ 300 ⚠️" ou "Tranquilo! Saldo positivo em R$ X ✅"
 - Sinalize com emoji: ✅ saldo positivo, ⚠️ saldo negativo, 🏆 maior categoria.
-- Se uma categoria representar mais de 40% dos gastos, alerte gentilmente: "Atenção: Uber é 45% dos seus gastos do mês 🚗".`,
+- Se uma categoria representar mais de 40% dos gastos, alerte gentilmente: "Atenção: Uber é 45% dos seus gastos do mês 🚗".${userCategoriesHint}
+
+🤔 SE NÃO ENTENDER a mensagem do usuário, NÃO invente. Use chat_reply para pedir confirmação amigável, ex: "Não entendi muito bem 😅 Você quis dizer que gastou R$ 50,00 com Uber?"`,
       },
+      ...(Array.isArray(history) ? history.filter((m: any) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim()).slice(-8).map((m: any) => ({ role: m.role, content: m.content })) : []),
       { role: "user", content: message },
     ];
 
