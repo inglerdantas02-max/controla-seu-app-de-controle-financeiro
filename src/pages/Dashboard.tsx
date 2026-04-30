@@ -450,6 +450,7 @@ const Dashboard = () => {
                 type="button"
                 onClick={() => {
                   setBalanceInput("");
+                  setBalanceMode("add");
                   setBalanceDialogOpen(true);
                 }}
                 className="p-1.5 rounded-lg hover:bg-white/15 transition-colors"
