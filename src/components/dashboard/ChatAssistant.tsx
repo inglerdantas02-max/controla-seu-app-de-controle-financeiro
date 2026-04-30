@@ -104,8 +104,13 @@ const ChatAssistant = ({ open, onOpenChange, onTransactionSaved, initialAssistan
     setLoading(true);
 
     try {
+      // Envia últimas mensagens (sem botões/estados) como contexto
+      const history = messages
+        .filter((m) => !m.pending || m.confirmed || m.cancelled)
+        .slice(-8)
+        .map((m) => ({ role: m.role, content: m.content }));
       const { data, error } = await supabase.functions.invoke("parse-transaction", {
-        body: { message: text },
+        body: { message: text, history },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
