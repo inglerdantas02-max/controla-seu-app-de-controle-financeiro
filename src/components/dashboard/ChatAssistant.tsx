@@ -32,9 +32,10 @@ interface Props {
   onOpenChange: (o: boolean) => void;
   onTransactionSaved: () => void;
   initialAssistantMessage?: string | null;
+  pendingPrompt?: string | null;
 }
 
-const ChatAssistant = ({ open, onOpenChange, onTransactionSaved, initialAssistantMessage }: Props) => {
+const ChatAssistant = ({ open, onOpenChange, onTransactionSaved, initialAssistantMessage, pendingPrompt }: Props) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([
     {
