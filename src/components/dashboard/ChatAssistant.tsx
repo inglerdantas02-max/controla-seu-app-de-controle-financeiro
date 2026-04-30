@@ -204,9 +204,14 @@ const ChatAssistant = ({ open, onOpenChange, onTransactionSaved, initialAssistan
               </div>
             ))}
             {loading && (
-              <div className="flex justify-start">
-                <div className="bg-muted rounded-2xl px-4 py-2.5 rounded-bl-sm">
-                  <Loader2 className="w-4 h-4 animate-spin" />
+              <div className="flex justify-start animate-fade-in">
+                <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-2.5 flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="flex gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </span>
+                  <span className="opacity-80">pensando...</span>
                 </div>
               </div>
             )}
