@@ -169,6 +169,13 @@ const Dashboard = () => {
     } else {
       setPendingInsightForChat(null);
     }
+    setPendingChatPrompt(null);
+    setChatOpen(true);
+  };
+
+  const openChatWith = (prompt: string) => {
+    setPendingInsightForChat(null);
+    setPendingChatPrompt(prompt);
     setChatOpen(true);
   };
 
