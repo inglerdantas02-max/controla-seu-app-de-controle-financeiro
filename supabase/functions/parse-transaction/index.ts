@@ -34,6 +34,36 @@ Deno.serve(async (req) => {
 
     const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split("T")[0];
 
+    // Memória inteligente: top categorias usadas pelo usuário (últimos 90 dias)
+    let userCategoriesHint = "";
+    try {
+      const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentTx } = await supabase
+        .from("transactions")
+        .select("type, category")
+        .eq("user_id", user.id)
+        .gte("occurred_at", since)
+        .not("category", "is", null)
+        .limit(500);
+      if (recentTx && recentTx.length) {
+        const expCats: Record<string, number> = {};
+        const incCats: Record<string, number> = {};
+        for (const t of recentTx as any[]) {
+          const bag = t.type === "income" ? incCats : expCats;
+          bag[t.category] = (bag[t.category] || 0) + 1;
+        }
+        const top = (b: Record<string, number>) =>
+          Object.entries(b).sort((a, c) => c[1] - a[1]).slice(0, 8).map(([k]) => k);
+        const e = top(expCats), i = top(incCats);
+        const parts: string[] = [];
+        if (e.length) parts.push(`Saídas frequentes: ${e.join(", ")}`);
+        if (i.length) parts.push(`Entradas frequentes: ${i.join(", ")}`);
+        if (parts.length) userCategoriesHint = `\n\n🧠 MEMÓRIA DO USUÁRIO — REUTILIZE estas categorias quando fizer sentido (mantém padrão):\n${parts.join("\n")}`;
+      }
+    } catch (e) {
+      console.warn("[memory] could not load user categories", e);
+    }
+
     const tools = [
       {
         type: "function",
