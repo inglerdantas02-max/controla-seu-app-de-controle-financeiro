@@ -152,6 +152,7 @@ const Dashboard = () => {
         if (text !== prev) setInsightSeen(false);
         return text;
       });
+      setCoachInsights(Array.isArray(data?.insights) ? data.insights : []);
     } catch (e) {
       // silencioso
     }
