@@ -5,7 +5,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { message } = await req.json();
+    const { message, history } = await req.json();
     if (!message || typeof message !== "string") {
       return new Response(JSON.stringify({ error: "Mensagem inválida" }), {
         status: 400,
