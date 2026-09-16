@@ -10,13 +10,14 @@ import { Bill, BillOccurrence, monthRange, todayBR } from "@/lib/bills";
  */
 export const useBills = (referenceMonth: Date) => {
   const { user } = useAuth();
+  const db = supabase as any;
   const [bills, setBills] = useState<Bill[]>([]);
   const [occurrences, setOccurrences] = useState<BillOccurrence[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadBills = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
+    const { data } = await db
       .from("bills")
       .select("*")
       .eq("user_id", user.id)
@@ -27,7 +28,7 @@ export const useBills = (referenceMonth: Date) => {
   const loadOccurrences = useCallback(async () => {
     if (!user) return;
     const { start, end } = monthRange(referenceMonth);
-    const { data } = await supabase
+    const { data } = await db
       .from("bill_occurrences")
       .select("*")
       .eq("user_id", user.id)
@@ -40,7 +41,7 @@ export const useBills = (referenceMonth: Date) => {
 
   const refresh = useCallback(async () => {
     if (!user) return;
-    await supabase.rpc("generate_bill_occurrences", { _months_ahead: 3 });
+    await db.rpc("generate_bill_occurrences", { _months_ahead: 3 });
     await Promise.all([loadBills(), loadOccurrences()]);
   }, [user, loadBills, loadOccurrences]);
 
@@ -50,7 +51,7 @@ export const useBills = (referenceMonth: Date) => {
 
   useEffect(() => {
     if (!user) return;
-    const channel = supabase
+    const channel = db
       .channel(`bills-${user.id}`)
       .on(
         "postgres_changes",
@@ -59,7 +60,7 @@ export const useBills = (referenceMonth: Date) => {
       )
       .subscribe();
     return () => {
-      supabase.removeChannel(channel);
+      db.removeChannel(channel);
     };
   }, [user, loadOccurrences]);
 
@@ -70,7 +71,7 @@ export const useBills = (referenceMonth: Date) => {
       let transactionId: string | null = occ.transaction_id;
 
       if (createExpense && !transactionId) {
-        const { data, error } = await supabase
+        const { data, error } = await db
           .from("transactions")
           .insert({
             user_id: user.id,
@@ -89,7 +90,7 @@ export const useBills = (referenceMonth: Date) => {
         transactionId = data.id;
       }
 
-      const { error } = await supabase
+      const { error } = await db
         .from("bill_occurrences")
         .update({ status: "paid", paid_at: new Date().toISOString(), transaction_id: transactionId })
         .eq("id", occ.id);
@@ -107,9 +108,9 @@ export const useBills = (referenceMonth: Date) => {
   const markPending = useCallback(
     async (occ: BillOccurrence) => {
       if (occ.transaction_id) {
-        await supabase.from("transactions").delete().eq("id", occ.transaction_id);
+        await db.from("transactions").delete().eq("id", occ.transaction_id);
       }
-      const { error } = await supabase
+      const { error } = await db
         .from("bill_occurrences")
         .update({ status: "pending", paid_at: null, transaction_id: null })
         .eq("id", occ.id);
@@ -136,15 +137,15 @@ export const useBills = (referenceMonth: Date) => {
         is_active: values.is_active ?? true,
       };
       const { error } = id
-        ? await supabase.from("bills").update(payload).eq("id", id)
-        : await supabase.from("bills").insert(payload);
+        ? await db.from("bills").update(payload).eq("id", id)
+        : await db.from("bills").insert(payload);
       if (error) {
         toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
         return false;
       }
       // Atualiza as ocorrências pendentes já geradas (valor/nome/categoria)
       if (id) {
-        await supabase
+        await db
           .from("bill_occurrences")
           .update({ name: payload.name, amount: payload.amount, category: payload.category })
           .eq("bill_id", id)
@@ -159,7 +160,7 @@ export const useBills = (referenceMonth: Date) => {
 
   const deleteBill = useCallback(
     async (id: string) => {
-      const { error } = await supabase.from("bills").delete().eq("id", id);
+      const { error } = await db.from("bills").delete().eq("id", id);
       if (error) {
         toast({ title: "Erro", description: error.message, variant: "destructive" });
         return;
@@ -174,7 +175,7 @@ export const useBills = (referenceMonth: Date) => {
   const addSingleOccurrence = useCallback(
     async (values: { name: string; amount: number; category: string | null; due_date: string }) => {
       if (!user) return false;
-      const { error } = await supabase.from("bill_occurrences").insert({
+      const { error } = await db.from("bill_occurrences").insert({
         user_id: user.id,
         bill_id: null,
         name: values.name,
@@ -196,7 +197,7 @@ export const useBills = (referenceMonth: Date) => {
 
   const updateOccurrence = useCallback(
     async (id: string, values: { name: string; amount: number; category: string | null; due_date: string }) => {
-      const { error } = await supabase
+      const { error } = await db
         .from("bill_occurrences")
         .update({ ...values, period_key: values.due_date.slice(0, 7) })
         .eq("id", id);
@@ -214,9 +215,9 @@ export const useBills = (referenceMonth: Date) => {
   const deleteOccurrence = useCallback(
     async (occ: BillOccurrence) => {
       if (occ.transaction_id) {
-        await supabase.from("transactions").delete().eq("id", occ.transaction_id);
+        await db.from("transactions").delete().eq("id", occ.transaction_id);
       }
-      const { error } = await supabase.from("bill_occurrences").delete().eq("id", occ.id);
+      const { error } = await db.from("bill_occurrences").delete().eq("id", occ.id);
       if (error) {
         toast({ title: "Erro", description: error.message, variant: "destructive" });
         return;
