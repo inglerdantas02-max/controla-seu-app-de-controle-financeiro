@@ -115,9 +115,9 @@ export const STATE_META: Record<BillState, { label: string; dot: string; chip: s
   },
   today: {
     label: "Vence hoje",
-    dot: "bg-yellow-500",
-    chip: "bg-yellow-500/15 text-yellow-600 border-yellow-500/30",
-    text: "text-yellow-600",
+    dot: "bg-warning",
+    chip: "bg-warning/15 text-warning-foreground border-warning/30",
+    text: "text-warning-foreground",
   },
   soon: {
     label: "Vence em breve",
