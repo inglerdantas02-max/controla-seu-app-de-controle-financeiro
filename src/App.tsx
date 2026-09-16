@@ -10,6 +10,7 @@ import Auth from "./pages/Auth.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import Admin from "./pages/Admin.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
+import Bills from "./pages/Bills.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import { SplashScreen } from "./components/SplashScreen";
 
@@ -30,6 +31,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/bills" element={<Bills />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </CheckoutProvider>

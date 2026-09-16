@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Settings, Shield, MessageCircle, TrendingUp, TrendingDown, Inbox, Trash2, FileText, CalendarIcon, Pencil, Eye, EyeOff } from "lucide-react";
+import { Settings, Shield, MessageCircle, TrendingDown, Inbox, Trash2, FileText, CalendarIcon, CreditCard, AlertTriangle, CheckCircle2, ArrowRight } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -24,6 +24,9 @@ import PastDueBanner from "@/components/dashboard/PastDueBanner";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Progress } from "@/components/ui/progress";
+import { useBills } from "@/hooks/useBills";
+import { billState, formatBRL as formatBillBRL, formatDueDate, STATE_META, summarize } from "@/lib/bills";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -84,16 +87,8 @@ const Dashboard = () => {
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const [fullName, setFullName] = useState<string>("");
-  const [initialBalance, setInitialBalance] = useState<number>(0);
-  const [hasInitialBalanceSet, setHasInitialBalanceSet] = useState<boolean>(true);
-  const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
-  const [balanceInput, setBalanceInput] = useState<string>("");
-  const [balanceMode, setBalanceMode] = useState<"add" | "replace">("add");
-  const [savingBalance, setSavingBalance] = useState(false);
-  const [balanceHidden, setBalanceHidden] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("balanceHidden") === "1";
-  });
+  const [billsMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const billsApi = useBills(billsMonth);
   const [insight, setInsight] = useState<string | null>(null);
   const [insightSeen, setInsightSeen] = useState<boolean>(false);
   const [pendingInsightForChat, setPendingInsightForChat] = useState<string | null>(null);
@@ -119,18 +114,13 @@ const Dashboard = () => {
     if (!user) return;
     supabase
       .from("profiles")
-      .select("full_name, initial_balance")
+      .select("full_name")
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {
         setFullName(data?.full_name ?? "");
-        const ib = data?.initial_balance != null ? Number(data.initial_balance) : 0;
-        setInitialBalance(ib);
-        // Considera "definido" se já tem valor != 0 OU se já temos transações (ver outro effect)
-        if (ib !== 0) setHasInitialBalanceSet(true);
-        else setHasInitialBalanceSet(false);
       });
-  }, [user, settingsOpen, balanceDialogOpen]);
+  }, [user, settingsOpen]);
 
   useEffect(() => {
     if (!user) return;
