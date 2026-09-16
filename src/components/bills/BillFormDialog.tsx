@@ -67,7 +67,7 @@ export default function BillFormDialog({
     if (mode === "recurring") {
       const day = Number(dueDay);
       if (day >= 1 && day <= 31) {
-        ok = await onSaveBill({ name: name.trim(), amount: numericAmount, category, due_day: day, periodicity, is_active }, bill?.id);
+        ok = await onSaveBill({ name: name.trim(), amount: numericAmount, category, due_day: day, periodicity, is_active: isActive }, bill?.id);
       }
     } else {
       ok = await onSaveOccurrence({ name: name.trim(), amount: numericAmount, category, due_date: dueDate }, occurrence?.id);
