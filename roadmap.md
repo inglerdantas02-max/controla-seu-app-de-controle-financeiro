@@ -7,4 +7,4 @@
 - [x] Integrar resumo de contas e gastos ao dashboard
 - [x] Substituir gerenciamento antigo de despesas fixas nas configurações
 - [x] Adicionar consultas de contas ao assistente
-- [ ] Validar compilação e fluxos no desktop e celular
+- [x] Validar compilação e fluxos no desktop e celular

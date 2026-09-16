@@ -164,12 +164,20 @@ export const useBills = (referenceMonth: Date) => {
 
   const deleteBill = useCallback(
     async (id: string) => {
+      const { error: unlinkError } = await supabase
+        .from("bill_occurrences")
+        .update({ bill_id: null })
+        .eq("bill_id", id);
+      if (unlinkError) {
+        toast({ title: "Erro", description: unlinkError.message, variant: "destructive" });
+        return;
+      }
       const { error } = await supabase.from("bills").delete().eq("id", id);
       if (error) {
         toast({ title: "Erro", description: error.message, variant: "destructive" });
         return;
       }
-      toast({ title: "Conta fixa removida" });
+      toast({ title: "Conta fixa removida", description: "Os vencimentos anteriores foram preservados." });
       await refresh();
     },
     [refresh],

@@ -403,7 +403,7 @@ const Dashboard = () => {
 
         {/* Coach financeiro: insights inteligentes do dia */}
         {(coachInsights.length > 0 || localInsights.length > 0 || comparison) && (
-          <div className="mb-8 bg-card border border-border rounded-3xl p-5 animate-fade-in">
+          <div className="mb-8 bg-card border border-border rounded-lg p-5 animate-fade-in">
             <div className="flex items-center gap-2 mb-3">
               <span className="w-2 h-2 rounded-full bg-gradient-primary animate-pulse" />
               <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
@@ -418,9 +418,9 @@ const Dashboard = () => {
                   <li
                     key={ci.id}
                     className={cn(
-                      "rounded-2xl p-3 border text-sm",
+                      "rounded-lg p-3 border text-sm",
                       ci.tone === "danger" && "bg-danger/10 border-danger/30 text-foreground",
-                      ci.tone === "warning" && "bg-yellow-500/10 border-yellow-500/30 text-foreground",
+                      ci.tone === "warning" && "bg-warning/10 border-warning/30 text-foreground",
                       ci.tone === "success" && "bg-success/10 border-success/30 text-foreground",
                       ci.tone === "info" && "bg-muted border-border text-foreground/90",
                     )}
@@ -429,7 +429,7 @@ const Dashboard = () => {
                     {ci.action && (
                       <button
                         type="button"
-                        onClick={() => openChatWith(ci.action!)}
+                        onClick={() => ci.action && openChatWith(ci.action)}
                         className="mt-2 text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
                       >
                         <MessageCircle className="w-3 h-3" /> {ci.action}
@@ -495,7 +495,7 @@ const Dashboard = () => {
           {loadingTxs ? (
             <p className="text-muted-foreground text-sm">Carregando...</p>
           ) : filteredTxs.filter((t) => t.type === "expense").length === 0 ? (
-            <div className="bg-card border border-dashed border-border rounded-3xl p-10 text-center">
+            <div className="bg-card border border-dashed border-border rounded-lg p-10 text-center">
               <Inbox className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
               <p className="font-semibold mb-1">Tudo vazio por aqui 👀</p>
               <p className="text-sm text-muted-foreground mb-4">
@@ -510,7 +510,7 @@ const Dashboard = () => {
               {filteredTxs.filter((t) => t.type === "expense").slice(0, 20).map((t) => (
                 <li
                   key={t.id}
-                  className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between gap-3 animate-fade-in"
+                  className="bg-card border border-border rounded-lg p-4 flex items-center justify-between gap-3 animate-fade-in"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-danger/15 text-danger">
