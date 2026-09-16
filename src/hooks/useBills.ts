@@ -79,7 +79,7 @@ export const useBills = (referenceMonth: Date) => {
             amount: Number(occ.amount),
             category: occ.category || "Contas",
             description: occ.name,
-            occurred_at: new Date(`${occ.due_date}T15:00:00.000Z`).toISOString(),
+            occurred_at: new Date().toISOString(),
           })
           .select("id")
           .single();
