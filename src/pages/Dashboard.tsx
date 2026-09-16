@@ -466,24 +466,24 @@ const Dashboard = () => {
             <div className="flex flex-wrap gap-2 mt-3">
               <button
                 type="button"
-                onClick={() => openChatWith("Me mostra o resumo de hoje")}
+                onClick={() => openChatWith("Quais contas vencem esta semana?")}
                 className="text-xs px-3 py-1.5 rounded-full bg-muted hover:bg-muted/70 transition-colors"
               >
-                📊 Resumo de hoje
+                📅 Próximos vencimentos
               </button>
               <button
                 type="button"
-                onClick={() => openChatWith("Como tá indo minha semana?")}
+                onClick={() => openChatWith("Tenho contas atrasadas?")}
                 className="text-xs px-3 py-1.5 rounded-full bg-muted hover:bg-muted/70 transition-colors"
               >
-                📅 Minha semana
+                ⚠️ Contas atrasadas
               </button>
               <button
                 type="button"
-                onClick={() => openChatWith("Quanto sobrou pra mim esse mês?")}
+                onClick={() => openChatWith("Quanto falta pagar este mês?")}
                 className="text-xs px-3 py-1.5 rounded-full bg-muted hover:bg-muted/70 transition-colors"
               >
-                💰 Saldo do mês
+                💳 Falta pagar
               </button>
             </div>
           </div>
@@ -557,7 +557,7 @@ const Dashboard = () => {
         <TooltipTrigger asChild>
           <button
             onClick={openChatWithInsight}
-            aria-label={insight && !insightSeen ? "Novo insight do assistente" : "Registrar gasto ou entrada"}
+            aria-label={insight && !insightSeen ? "Novo insight do assistente" : "Abrir assistente financeiro"}
             className="fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full bg-gradient-primary text-primary-foreground shadow-glow flex items-center justify-center hover:scale-110 transition-transform animate-pulse-glow"
           >
             <MessageCircle className="w-7 h-7" />
@@ -570,7 +570,7 @@ const Dashboard = () => {
           </button>
         </TooltipTrigger>
         <TooltipContent side="left" sideOffset={8}>
-          Registrar gasto ou entrada
+          Abrir assistente financeiro
         </TooltipContent>
       </Tooltip>
 
