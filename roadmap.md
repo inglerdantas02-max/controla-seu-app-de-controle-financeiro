@@ -2,9 +2,9 @@
 
 - [x] Criar estrutura segura de contas fixas e ocorrências mensais
 - [x] Migrar despesas fixas existentes sem apagar dados antigos
-- [ ] Criar tela completa de contas a pagar por mês
-- [ ] Criar formulários de conta fixa e conta avulsa
-- [ ] Integrar resumo de contas e gastos ao dashboard
-- [ ] Substituir gerenciamento antigo de despesas fixas nas configurações
-- [ ] Adicionar consultas de contas ao assistente
+- [x] Criar tela completa de contas a pagar por mês
+- [x] Criar formulários de conta fixa e conta avulsa
+- [x] Integrar resumo de contas e gastos ao dashboard
+- [x] Substituir gerenciamento antigo de despesas fixas nas configurações
+- [x] Adicionar consultas de contas ao assistente
 - [ ] Validar compilação e fluxos no desktop e celular

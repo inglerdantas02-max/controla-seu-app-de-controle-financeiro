@@ -96,8 +96,8 @@ const SettingsDialog = ({ open, onOpenChange }: Props) => {
       });
       if (error || !data?.url) throw new Error(error?.message || "Falha ao abrir o portal");
       window.open(data.url, "_blank");
-    } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro", description: e instanceof Error ? e.message : "Falha ao abrir o portal", variant: "destructive" });
     } finally {
       setPortalLoading(false);
     }
