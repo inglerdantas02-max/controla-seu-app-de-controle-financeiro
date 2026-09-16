@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { Download, TrendingDown, ReceiptText } from "lucide-react";
 
 interface Tx {
   id: string;
@@ -21,9 +21,8 @@ const formatBRL = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const ReportDialog = ({ open, onOpenChange, txs, periodLabel }: Props) => {
-  const income = txs.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
   const expense = txs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
-  const balance = income - expense;
+  const expenseTxs = txs.filter((t) => t.type === "expense");
 
   const byCategory = new Map<string, number>();
   txs.filter((t) => t.type === "expense").forEach((t) => {
@@ -41,7 +40,7 @@ const ReportDialog = ({ open, onOpenChange, txs, periodLabel }: Props) => {
         body{font-family:system-ui,sans-serif;padding:40px;max-width:700px;margin:auto;color:#111}
         h1{font-size:28px;margin-bottom:4px}
         .sub{color:#666;margin-bottom:32px}
-        .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px}
+        .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:32px}
         .card{border:1px solid #e5e5e5;border-radius:12px;padding:16px}
         .label{font-size:12px;color:#666}
         .value{font-size:22px;font-weight:700;margin-top:4px}
@@ -53,17 +52,16 @@ const ReportDialog = ({ open, onOpenChange, txs, periodLabel }: Props) => {
       <h1>Relatório Financeiro</h1>
       <p class="sub">CONTROLA • ${periodLabel}</p>
       <div class="grid">
-        <div class="card"><div class="label">Saldo</div><div class="value">${formatBRL(balance)}</div></div>
-        <div class="card"><div class="label">Entradas</div><div class="value green">${formatBRL(income)}</div></div>
-        <div class="card"><div class="label">Saídas</div><div class="value red">${formatBRL(expense)}</div></div>
+        <div class="card"><div class="label">Gastos</div><div class="value red">${formatBRL(expense)}</div></div>
+        <div class="card"><div class="label">Registros</div><div class="value">${expenseTxs.length}</div></div>
       </div>
       <h2>Top categorias de gasto</h2>
       <table><thead><tr><th>Categoria</th><th>Total</th></tr></thead><tbody>
       ${topCategories.map(([c, v]) => `<tr><td>${c}</td><td>${formatBRL(v)}</td></tr>`).join("") || '<tr><td colspan="2">Sem dados</td></tr>'}
       </tbody></table>
-      <h2>Movimentações (${txs.length})</h2>
-      <table><thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Valor</th></tr></thead><tbody>
-      ${txs.map((t) => `<tr><td>${new Date(t.occurred_at).toLocaleDateString("pt-BR")}</td><td>${t.type === "income" ? "Entrada" : "Saída"}</td><td>${t.category || "-"}</td><td>${formatBRL(Number(t.amount))}</td></tr>`).join("")}
+      <h2>Gastos (${expenseTxs.length})</h2>
+      <table><thead><tr><th>Data</th><th>Categoria</th><th>Valor</th></tr></thead><tbody>
+      ${expenseTxs.map((t) => `<tr><td>${new Date(t.occurred_at).toLocaleDateString("pt-BR")}</td><td>${t.category || "-"}</td><td>${formatBRL(Number(t.amount))}</td></tr>`).join("")}
       </tbody></table>
       </body></html>`;
     const w = window.open("", "_blank");
@@ -81,21 +79,16 @@ const ReportDialog = ({ open, onOpenChange, txs, periodLabel }: Props) => {
           <DialogTitle className="font-display">Relatório • {periodLabel}</DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-gradient-primary text-primary-foreground p-3 rounded-2xl">
-            <Wallet className="w-4 h-4 mb-1 opacity-80" />
-            <p className="text-xs opacity-80">Saldo</p>
-            <p className="font-display font-bold text-sm">{formatBRL(balance)}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-gradient-primary text-primary-foreground p-3 rounded-lg">
+            <TrendingDown className="w-4 h-4 mb-1 opacity-80" />
+            <p className="text-xs opacity-80">Gastos</p>
+            <p className="font-display font-bold text-sm">{formatBRL(expense)}</p>
           </div>
-          <div className="bg-success/10 p-3 rounded-2xl">
-            <TrendingUp className="w-4 h-4 mb-1 text-success" />
-            <p className="text-xs text-muted-foreground">Entradas</p>
-            <p className="font-display font-bold text-sm text-success">{formatBRL(income)}</p>
-          </div>
-          <div className="bg-danger/10 p-3 rounded-2xl">
-            <TrendingDown className="w-4 h-4 mb-1 text-danger" />
-            <p className="text-xs text-muted-foreground">Saídas</p>
-            <p className="font-display font-bold text-sm text-danger">{formatBRL(expense)}</p>
+          <div className="bg-muted p-3 rounded-lg">
+            <ReceiptText className="w-4 h-4 mb-1 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">Registros</p>
+            <p className="font-display font-bold text-sm">{expenseTxs.length}</p>
           </div>
         </div>
 
@@ -124,7 +117,7 @@ const ReportDialog = ({ open, onOpenChange, txs, periodLabel }: Props) => {
         </div>
 
         <div className="text-sm text-muted-foreground">
-          Total de movimentações: <span className="font-semibold text-foreground">{txs.length}</span>
+          Total de gastos registrados: <span className="font-semibold text-foreground">{expenseTxs.length}</span>
         </div>
 
         <Button onClick={exportPDF} variant="hero" className="w-full">

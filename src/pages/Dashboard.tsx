@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Settings, Shield, MessageCircle, TrendingUp, TrendingDown, Inbox, Trash2, FileText, CalendarIcon, Pencil, Eye, EyeOff } from "lucide-react";
+import { Settings, Shield, MessageCircle, TrendingDown, Inbox, Trash2, FileText, CalendarIcon, CreditCard, AlertTriangle, CheckCircle2, ArrowRight } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -13,9 +13,6 @@ import { supabase } from "@/integrations/supabase/client";
 import ChatAssistant from "@/components/dashboard/ChatAssistant";
 import SettingsDialog from "@/components/dashboard/SettingsDialog";
 import ReportDialog from "@/components/dashboard/ReportDialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import TrialBanner from "@/components/dashboard/TrialBanner";
 import Paywall from "@/pages/Paywall";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -24,6 +21,9 @@ import PastDueBanner from "@/components/dashboard/PastDueBanner";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Progress } from "@/components/ui/progress";
+import { useBills } from "@/hooks/useBills";
+import { billState, formatBRL as formatBillBRL, formatDueDate, STATE_META, summarize } from "@/lib/bills";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -84,16 +84,8 @@ const Dashboard = () => {
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const [fullName, setFullName] = useState<string>("");
-  const [initialBalance, setInitialBalance] = useState<number>(0);
-  const [hasInitialBalanceSet, setHasInitialBalanceSet] = useState<boolean>(true);
-  const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
-  const [balanceInput, setBalanceInput] = useState<string>("");
-  const [balanceMode, setBalanceMode] = useState<"add" | "replace">("add");
-  const [savingBalance, setSavingBalance] = useState(false);
-  const [balanceHidden, setBalanceHidden] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("balanceHidden") === "1";
-  });
+  const [billsMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const billsApi = useBills(billsMonth);
   const [insight, setInsight] = useState<string | null>(null);
   const [insightSeen, setInsightSeen] = useState<boolean>(false);
   const [pendingInsightForChat, setPendingInsightForChat] = useState<string | null>(null);
@@ -119,18 +111,13 @@ const Dashboard = () => {
     if (!user) return;
     supabase
       .from("profiles")
-      .select("full_name, initial_balance")
+      .select("full_name")
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {
         setFullName(data?.full_name ?? "");
-        const ib = data?.initial_balance != null ? Number(data.initial_balance) : 0;
-        setInitialBalance(ib);
-        // Considera "definido" se já tem valor != 0 OU se já temos transações (ver outro effect)
-        if (ib !== 0) setHasInitialBalanceSet(true);
-        else setHasInitialBalanceSet(false);
       });
-  }, [user, settingsOpen, balanceDialogOpen]);
+  }, [user, settingsOpen]);
 
   useEffect(() => {
     if (!user) return;
@@ -220,61 +207,12 @@ const Dashboard = () => {
     return { filteredTxs: filtered, periodLabel: label };
   }, [txs, period, customDate]);
 
-  const totalBalance = useMemo(
-    () =>
-      initialBalance +
-      txs.reduce(
-        (s, t) => s + (t.type === "income" ? Number(t.amount) : -Number(t.amount)),
-        0,
-      ),
-    [txs, initialBalance],
-  );
-
-  // Onboarding: ao primeiro acesso (sem saldo definido E sem transações), abrir dialog
-  useEffect(() => {
-    if (loadingTxs) return;
-    if (!hasInitialBalanceSet && txs.length === 0 && !balanceDialogOpen) {
-      setBalanceInput("");
-      setBalanceDialogOpen(true);
-    }
-  }, [loadingTxs, hasInitialBalanceSet, txs.length, balanceDialogOpen]);
-
-  const saveInitialBalance = async () => {
-    if (!user) return;
-    const normalized = balanceInput.replace(/\./g, "").replace(",", ".");
-    const value = Number(normalized);
-    if (Number.isNaN(value)) {
-      toast({ title: "Valor inválido", description: "Informe um número válido.", variant: "destructive" });
-      return;
-    }
-    // Em "replace" (ou primeira vez), o valor digitado vira o saldo manual.
-    // Em "add", soma ao saldo manual existente.
-    const newBalance = (hasInitialBalanceSet && balanceMode === "add") ? initialBalance + value : value;
-    if (newBalance < 0) {
-      toast({ title: "Valor inválido", description: "O saldo não pode ficar negativo.", variant: "destructive" });
-      return;
-    }
-    setSavingBalance(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ initial_balance: newBalance })
-      .eq("id", user.id);
-    setSavingBalance(false);
-    if (error) {
-      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-      return;
-    }
-    setInitialBalance(newBalance);
-    setHasInitialBalanceSet(true);
-    setBalanceDialogOpen(false);
-    toast({ title: "Saldo atualizado", description: "Seu saldo atual foi atualizado." });
-  };
+  const billsSummary = useMemo(() => summarize(billsApi.occurrences), [billsApi.occurrences]);
 
   if (loading || subLoading) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   if (!user) return <Navigate to="/auth" replace />;
   if (isBlocked) return <Paywall />;
 
-  const income = filteredTxs.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
   const expense = filteredTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
 
   const firstName = (fullName || user.email?.split("@")[0] || "").trim().split(" ")[0];
@@ -291,7 +229,6 @@ const Dashboard = () => {
     return d >= yesterdayStart && d < todayStart;
   });
 
-  const todayIncome = todayTxs.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
   const todayExpense = todayTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
   const yesterdayExpense = yesterdayTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
 
@@ -318,7 +255,6 @@ const Dashboard = () => {
   } else {
     if (todayExpense > 0) localInsights.push(`Hoje você gastou ${formatBRL(todayExpense)}.`);
     if (topCategory && todayExpense > 0) localInsights.push(`Seu maior gasto foi com ${topCategory}.`);
-    if (todayIncome > 0) localInsights.push(`Você recebeu ${formatBRL(todayIncome)} hoje.`);
   }
 
   // Comparação com ontem (apenas se houver dado de ontem)
@@ -428,57 +364,42 @@ const Dashboard = () => {
         </div>
 
         <div className="grid md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-gradient-primary text-primary-foreground p-6 rounded-3xl shadow-glow relative">
-            <div className="absolute top-4 right-4 flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setBalanceHidden((prev) => {
-                    const next = !prev;
-                    try {
-                      window.localStorage.setItem("balanceHidden", next ? "1" : "0");
-                    } catch {}
-                    return next;
-                  });
-                }}
-                className="p-1.5 rounded-lg hover:bg-white/15 transition-colors"
-                aria-label={balanceHidden ? "Mostrar saldo" : "Ocultar saldo"}
-              >
-                {balanceHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setBalanceInput("");
-                  setBalanceMode("add");
-                  setBalanceDialogOpen(true);
-                }}
-                className="p-1.5 rounded-lg hover:bg-white/15 transition-colors"
-                aria-label="Editar saldo atual"
-              >
-                <Pencil className="w-4 h-4" />
-              </button>
-            </div>
-            <p className="text-sm opacity-80 mb-1">Saldo atual</p>
-            <p className="font-display text-3xl font-bold tracking-wider">
-              {balanceHidden ? "R$ ••••••" : formatBRL(totalBalance)}
-            </p>
+          <div className="bg-gradient-primary text-primary-foreground p-6 rounded-lg shadow-glow">
+            <div className="flex items-center gap-2 mb-1"><TrendingDown className="w-4 h-4" /><p className="text-sm opacity-80">Gastos • {periodLabel.toLowerCase()}</p></div>
+            <p className="font-display text-3xl font-bold">{formatBRL(expense)}</p>
           </div>
-          <div className="bg-card border border-border p-6 rounded-3xl">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="w-4 h-4 text-success" />
-              <p className="text-sm text-muted-foreground">Entradas</p>
-            </div>
-            <p className="font-display text-3xl font-bold text-success">{formatBRL(income)}</p>
+          <div className="bg-card border border-border p-6 rounded-lg">
+            <div className="flex items-center gap-2 mb-1"><CreditCard className="w-4 h-4 text-primary" /><p className="text-sm text-muted-foreground">Contas a pagar</p></div>
+            <p className="font-display text-3xl font-bold text-primary">{formatBillBRL(billsSummary.pending)}</p>
+            <p className="text-xs text-muted-foreground mt-1">{billsSummary.pendingCount} pendentes neste mês</p>
           </div>
-          <div className="bg-card border border-border p-6 rounded-3xl">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingDown className="w-4 h-4 text-danger" />
-              <p className="text-sm text-muted-foreground">Saídas</p>
-            </div>
-            <p className="font-display text-3xl font-bold text-danger">{formatBRL(expense)}</p>
+          <div className="bg-card border border-border p-6 rounded-lg">
+            <div className="flex items-center gap-2 mb-1"><AlertTriangle className="w-4 h-4 text-danger" /><p className="text-sm text-muted-foreground">Contas vencidas</p></div>
+            <p className="font-display text-3xl font-bold text-danger">{formatBillBRL(billsSummary.overdue)}</p>
+            <p className="text-xs text-muted-foreground mt-1">{billsSummary.overdueCount} em atraso</p>
           </div>
         </div>
+
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <div><h2 className="font-display text-xl font-bold">Próximas contas</h2><p className="text-sm text-muted-foreground">Vencimentos do mês atual</p></div>
+            <Button asChild variant="outline" size="sm"><Link to="/bills">Ver todas <ArrowRight className="w-4 h-4" /></Link></Button>
+          </div>
+          <div className="bg-card border border-border rounded-lg p-4">
+            <div className="flex justify-between text-sm mb-2"><span>{billsSummary.paidCount} de {billsSummary.count} pagas</span><span className="font-semibold">{billsSummary.progress}%</span></div>
+            <Progress value={billsSummary.progress} className="h-2 bg-muted mb-4" />
+            {billsApi.occurrences.length === 0 ? (
+              <div className="text-center py-5"><CheckCircle2 className="w-9 h-9 mx-auto text-muted-foreground mb-2" /><p className="text-sm font-medium">Nenhuma conta cadastrada</p><Button asChild variant="link" size="sm"><Link to="/bills">Adicionar conta</Link></Button></div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {billsApi.occurrences.filter((item) => item.status !== "paid").slice(0, 4).map((item) => {
+                  const state = billState(item);
+                  return <li key={item.id} className="py-3 flex items-center justify-between gap-3"><div className="flex items-center gap-3 min-w-0"><span className={`w-2.5 h-2.5 rounded-full shrink-0 ${STATE_META[state].dot}`} /><div className="min-w-0"><p className="font-medium truncate">{item.name}</p><p className="text-xs text-muted-foreground">Vence em {formatDueDate(item.due_date)}</p></div></div><p className="font-display font-bold shrink-0">{formatBillBRL(Number(item.amount))}</p></li>;
+                })}
+              </ul>
+            )}
+          </div>
+        </section>
 
         {/* Coach financeiro: insights inteligentes do dia */}
         {(coachInsights.length > 0 || localInsights.length > 0 || comparison) && (
@@ -545,24 +466,24 @@ const Dashboard = () => {
             <div className="flex flex-wrap gap-2 mt-3">
               <button
                 type="button"
-                onClick={() => openChatWith("Me mostra o resumo de hoje")}
+                onClick={() => openChatWith("Quais contas vencem esta semana?")}
                 className="text-xs px-3 py-1.5 rounded-full bg-muted hover:bg-muted/70 transition-colors"
               >
-                📊 Resumo de hoje
+                📅 Próximos vencimentos
               </button>
               <button
                 type="button"
-                onClick={() => openChatWith("Como tá indo minha semana?")}
+                onClick={() => openChatWith("Tenho contas atrasadas?")}
                 className="text-xs px-3 py-1.5 rounded-full bg-muted hover:bg-muted/70 transition-colors"
               >
-                📅 Minha semana
+                ⚠️ Contas atrasadas
               </button>
               <button
                 type="button"
-                onClick={() => openChatWith("Quanto sobrou pra mim esse mês?")}
+                onClick={() => openChatWith("Quanto falta pagar este mês?")}
                 className="text-xs px-3 py-1.5 rounded-full bg-muted hover:bg-muted/70 transition-colors"
               >
-                💰 Saldo do mês
+                💳 Falta pagar
               </button>
             </div>
           </div>
@@ -570,10 +491,10 @@ const Dashboard = () => {
 
         <section>
 
-          <h2 className="font-display text-xl font-bold mb-4">Movimentações recentes</h2>
+          <h2 className="font-display text-xl font-bold mb-4">Gastos recentes</h2>
           {loadingTxs ? (
             <p className="text-muted-foreground text-sm">Carregando...</p>
-          ) : filteredTxs.length === 0 ? (
+          ) : filteredTxs.filter((t) => t.type === "expense").length === 0 ? (
             <div className="bg-card border border-dashed border-border rounded-3xl p-10 text-center">
               <Inbox className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
               <p className="font-semibold mb-1">Tudo vazio por aqui 👀</p>
@@ -586,18 +507,14 @@ const Dashboard = () => {
             </div>
           ) : (
             <ul className="space-y-2">
-              {filteredTxs.slice(0, 20).map((t) => (
+              {filteredTxs.filter((t) => t.type === "expense").slice(0, 20).map((t) => (
                 <li
                   key={t.id}
                   className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between gap-3 animate-fade-in"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                        t.type === "income" ? "bg-success/15 text-success" : "bg-danger/15 text-danger"
-                      }`}
-                    >
-                      {t.type === "income" ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-danger/15 text-danger">
+                      <TrendingDown className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
                       <p className="font-semibold truncate">{t.description || t.category || (t.type === "income" ? "Entrada" : "Saída")}</p>
@@ -608,9 +525,7 @@ const Dashboard = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <p className={`font-display font-bold ${t.type === "income" ? "text-success" : "text-danger"}`}>
-                      {t.type === "income" ? "+" : "-"}{formatBRL(Number(t.amount))}
-                    </p>
+                    <p className="font-display font-bold text-danger">-{formatBRL(Number(t.amount))}</p>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-danger">
@@ -642,7 +557,7 @@ const Dashboard = () => {
         <TooltipTrigger asChild>
           <button
             onClick={openChatWithInsight}
-            aria-label={insight && !insightSeen ? "Novo insight do assistente" : "Registrar gasto ou entrada"}
+            aria-label={insight && !insightSeen ? "Novo insight do assistente" : "Abrir assistente financeiro"}
             className="fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full bg-gradient-primary text-primary-foreground shadow-glow flex items-center justify-center hover:scale-110 transition-transform animate-pulse-glow"
           >
             <MessageCircle className="w-7 h-7" />
@@ -655,7 +570,7 @@ const Dashboard = () => {
           </button>
         </TooltipTrigger>
         <TooltipContent side="left" sideOffset={8}>
-          Registrar gasto ou entrada
+          Abrir assistente financeiro
         </TooltipContent>
       </Tooltip>
 
@@ -675,66 +590,6 @@ const Dashboard = () => {
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <ReportDialog open={reportOpen} onOpenChange={setReportOpen} txs={filteredTxs} periodLabel={periodLabel} />
 
-      <Dialog open={balanceDialogOpen} onOpenChange={setBalanceDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {hasInitialBalanceSet ? "Editar saldo atual" : "Bem-vindo! Qual é o seu saldo atual?"}
-            </DialogTitle>
-            <DialogDescription>
-              {hasInitialBalanceSet
-                ? `Saldo manual atual: ${formatBRL(initialBalance)}. Escolha somar um valor ou substituir pelo valor correto.`
-                : "Informe quanto você já tem em conta. Isso será seu ponto de partida e não conta como entrada."}
-            </DialogDescription>
-          </DialogHeader>
-
-          {hasInitialBalanceSet && (
-            <Tabs value={balanceMode} onValueChange={(v) => { setBalanceMode(v as "add" | "replace"); setBalanceInput(""); }} className="w-full">
-              <TabsList className="grid grid-cols-2 w-full">
-                <TabsTrigger value="add">Somar</TabsTrigger>
-                <TabsTrigger value="replace">Substituir</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          )}
-
-          <div className="space-y-2 py-2">
-            <Label htmlFor="initial-balance">
-              {!hasInitialBalanceSet
-                ? "Saldo (R$)"
-                : balanceMode === "add"
-                  ? "Valor a somar (R$)"
-                  : "Novo saldo (R$)"}
-            </Label>
-            <Input
-              id="initial-balance"
-              inputMode="decimal"
-              placeholder="0,00"
-              value={balanceInput}
-              onChange={(e) => setBalanceInput(e.target.value)}
-              autoFocus
-            />
-            {hasInitialBalanceSet && balanceMode === "replace" && (
-              <p className="text-xs text-muted-foreground">
-                ⚠️ O saldo manual atual de {formatBRL(initialBalance)} será descartado e substituído pelo valor informado. As suas movimentações continuam preservadas.
-              </p>
-            )}
-          </div>
-          <DialogFooter className="gap-2">
-            {hasInitialBalanceSet && (
-              <Button variant="outline" onClick={() => setBalanceDialogOpen(false)}>
-                Cancelar
-              </Button>
-            )}
-            <Button
-              variant="hero"
-              onClick={saveInitialBalance}
-              disabled={savingBalance || balanceInput.trim() === ""}
-            >
-              {savingBalance ? "Salvando..." : balanceMode === "replace" && hasInitialBalanceSet ? "Substituir" : "Salvar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

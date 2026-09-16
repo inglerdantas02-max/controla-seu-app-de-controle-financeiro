@@ -68,6 +68,7 @@ export const useBills = (referenceMonth: Date) => {
     async (occ: BillOccurrence, createExpense: boolean) => {
       if (!user) return;
       let transactionId: string | null = occ.transaction_id;
+      let createdTransactionId: string | null = null;
 
       if (createExpense && !transactionId) {
         const { data, error } = await supabase
@@ -78,7 +79,7 @@ export const useBills = (referenceMonth: Date) => {
             amount: Number(occ.amount),
             category: occ.category || "Contas",
             description: occ.name,
-            occurred_at: new Date(`${occ.due_date}T15:00:00.000Z`).toISOString(),
+            occurred_at: new Date().toISOString(),
           })
           .select("id")
           .single();
@@ -87,6 +88,7 @@ export const useBills = (referenceMonth: Date) => {
           return;
         }
         transactionId = data.id;
+        createdTransactionId = data.id;
       }
 
       const { error } = await supabase
@@ -94,6 +96,9 @@ export const useBills = (referenceMonth: Date) => {
         .update({ status: "paid", paid_at: new Date().toISOString(), transaction_id: transactionId })
         .eq("id", occ.id);
       if (error) {
+        if (createdTransactionId) {
+          await supabase.from("transactions").delete().eq("id", createdTransactionId);
+        }
         toast({ title: "Erro", description: error.message, variant: "destructive" });
         return;
       }

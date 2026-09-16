@@ -133,6 +133,30 @@ Deno.serve(async (req) => {
       {
         type: "function",
         function: {
+          name: "get_bills_report",
+          description: "Consulta as contas a pagar reais do usuário. Use para perguntas sobre contas pendentes, pagas, vencidas, próximos vencimentos e quanto falta pagar.",
+          parameters: {
+            type: "object",
+            properties: {
+              period: {
+                type: "string",
+                enum: ["today", "week", "month", "next_month"],
+                description: "Período das contas. Default: month",
+              },
+              status_filter: {
+                type: "string",
+                enum: ["pending", "paid", "overdue", "any"],
+                description: "Situação solicitada. Default: any",
+              },
+            },
+            required: [],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
           name: "chat_reply",
           description: "Responde ao usuário sem registrar transação nem consultar relatório (saudações, dúvidas gerais).",
           parameters: {
@@ -152,7 +176,7 @@ Deno.serve(async (req) => {
 
 🧠 SUA MISSÃO: não apenas registrar dados — entender, analisar e orientar o usuário sobre a vida financeira dele.
 
-Você tem 3 ferramentas:
+Você tem 4 ferramentas:
 1) register_transaction → quando o usuário descreve um gasto/ganho ("gastei 30 com almoço", "recebi 200 de salário", "vendi 150 reais", "paguei 50 de uber", "recebi pix 100").
 2) get_financial_report → SEMPRE que o usuário perguntar sobre VALORES, SALDO, RESUMO, ou usar expressões como:
    - "quanto gastei/recebi/ganhei..."
@@ -161,7 +185,12 @@ Você tem 3 ferramentas:
    - "quanto ainda posso gastar" → period=month (calcule income - expense)
    - "como tá meu mês/semana/dia"
    - "qual meu saldo"
-3) chat_reply → APENAS para saudações ("oi", "olá") ou dúvidas gerais sobre como usar o app. NUNCA invente valores aqui.
+3) get_bills_report → SEMPRE que o usuário perguntar sobre contas a pagar, contas vencidas, próximas contas, vencimentos, contas pagas ou quanto falta pagar. Exemplos:
+   - "quais contas vencem hoje/esta semana?"
+   - "tenho contas atrasadas?"
+   - "quanto falta pagar este mês?"
+   - "quais contas já paguei?"
+4) chat_reply → APENAS para saudações ("oi", "olá") ou dúvidas gerais sobre como usar o app. NUNCA invente valores aqui.
 
 ⚠️ REGRA DE OURO — PRECISÃO:
 - NUNCA invente valores. Se o usuário pergunta qualquer coisa numérica, chame get_financial_report PRIMEIRO.
@@ -302,6 +331,21 @@ Para relatórios:
         // Forçar próxima iteração a responder em texto puro
         continue;
       }
+
+      if (fnName === "get_bills_report") {
+        const report = await buildBillsReport(supabase, user.id, args);
+        messages.push({
+          role: "assistant",
+          content: null,
+          tool_calls: [toolCall],
+        });
+        messages.push({
+          role: "tool",
+          tool_call_id: toolCall.id,
+          content: JSON.stringify(report),
+        });
+        continue;
+      }
     }
 
     return new Response(JSON.stringify({ is_transaction: false, reply: "Não consegui processar. Tente novamente." }), {
@@ -314,6 +358,73 @@ Para relatórios:
     });
   }
 });
+
+async function buildBillsReport(supabase: any, userId: string, args: any) {
+  const now = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const today = now.toISOString().slice(0, 10);
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+  const makeYmd = (date: Date) => date.toISOString().slice(0, 10);
+  let start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+  let end = makeYmd(new Date(Date.UTC(y, m + 1, 0)));
+  let label = "este mês";
+
+  if (args.period === "today") {
+    start = today;
+    end = today;
+    label = "hoje";
+  } else if (args.period === "week") {
+    end = makeYmd(new Date(Date.UTC(y, m, now.getUTCDate() + 7)));
+    start = today;
+    label = "os próximos 7 dias";
+  } else if (args.period === "next_month") {
+    start = makeYmd(new Date(Date.UTC(y, m + 1, 1)));
+    end = makeYmd(new Date(Date.UTC(y, m + 2, 0)));
+    label = "o próximo mês";
+  }
+
+  const { data, error } = await supabase
+    .from("bill_occurrences")
+    .select("name, amount, category, due_date, status, paid_at")
+    .eq("user_id", userId)
+    .gte("due_date", start)
+    .lte("due_date", end)
+    .order("due_date", { ascending: true })
+    .limit(1000);
+
+  if (error) return { error: error.message, period_label: label };
+
+  const requested = args.status_filter || "any";
+  const rows = (data || []).filter((bill: any) => {
+    if (requested === "overdue") return bill.status === "pending" && bill.due_date < today;
+    if (requested === "pending") return bill.status === "pending";
+    if (requested === "paid") return bill.status === "paid";
+    return true;
+  });
+  const pending = rows.filter((bill: any) => bill.status === "pending");
+  const paid = rows.filter((bill: any) => bill.status === "paid");
+  const overdue = pending.filter((bill: any) => bill.due_date < today);
+  const total = (items: any[]) => Number(items.reduce((sum, item) => sum + Number(item.amount), 0).toFixed(2));
+
+  return {
+    period_label: label,
+    status_filter: requested,
+    count: rows.length,
+    total: total(rows),
+    pending_total: total(pending),
+    paid_total: total(paid),
+    overdue_total: total(overdue),
+    overdue_count: overdue.length,
+    bills: rows.slice(0, 30).map((bill: any) => ({
+      name: bill.name,
+      amount: Number(bill.amount),
+      category: bill.category || "Outros",
+      due_date: bill.due_date,
+      status: bill.status === "paid" ? "paga" : bill.due_date < today ? "vencida" : "pendente",
+    })),
+    message: rows.length ? undefined : "Nenhuma conta encontrada nesse período.",
+  };
+}
 
 async function buildReport(supabase: any, userId: string, args: any) {
   // Fuso horário do Brasil (UTC-3) — converte "agora UTC" para "agora no BR"

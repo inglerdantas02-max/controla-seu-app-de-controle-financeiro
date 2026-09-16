@@ -51,8 +51,14 @@ export const formatBRL = (n: number) =>
 
 /** Data de hoje no fuso de Brasília, como YYYY-MM-DD */
 export const todayBR = (): string => {
-  const d = new Date(Date.now() - 3 * 60 * 60 * 1000);
-  return d.toISOString().slice(0, 10);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
 };
 
 export const monthKey = (d: Date) =>

@@ -41,7 +41,7 @@ const ChatAssistant = ({ open, onOpenChange, onTransactionSaved, initialAssistan
     {
       id: "welcome",
       role: "assistant",
-      content: "Olá! 👋 Eu sou seu assistente. Me conte algo como:\n\n• \"Gastei 30 com almoço\"\n• \"Ganhei 200 hoje\"\n• \"Quanto gastei essa semana?\"\n• \"Quanto sobrou pra mim hoje?\"",
+      content: "Olá! 👋 Eu sou seu assistente. Me conte algo como:\n\n• \"Gastei 30 com almoço\"\n• \"Quais contas vencem esta semana?\"\n• \"Quanto falta pagar este mês?\"\n• \"Quanto gastei essa semana?\"",
     },
   ]);
 
