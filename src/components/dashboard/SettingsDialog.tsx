@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,16 +22,8 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useCheckout } from "@/hooks/useCheckout";
 import { signOut } from "@/lib/auth";
 import { toast } from "@/hooks/use-toast";
-import { LogOut, Plus, Trash2, Loader2, ExternalLink, Sparkles } from "lucide-react";
+import { LogOut, Trash2, Loader2, ExternalLink, Sparkles, CreditCard, ArrowRight } from "lucide-react";
 import { getStripeEnvironment } from "@/lib/stripe";
-
-interface FixedExpense {
-  id: string;
-  name: string;
-  amount: number;
-  day_of_month: number;
-  category: string | null;
-}
 
 interface Props {
   open: boolean;
@@ -49,11 +42,6 @@ const SettingsDialog = ({ open, onOpenChange }: Props) => {
   const [newPassword, setNewPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
 
-  const [expenses, setExpenses] = useState<FixedExpense[]>([]);
-  const [exName, setExName] = useState("");
-  const [exAmount, setExAmount] = useState("");
-  const [exDay, setExDay] = useState("");
-
   const [portalLoading, setPortalLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -62,9 +50,6 @@ const SettingsDialog = ({ open, onOpenChange }: Props) => {
     supabase.from("profiles").select("full_name,email").eq("id", user.id).maybeSingle().then(({ data }) => {
       setFullName(data?.full_name ?? "");
       setEmail(data?.email ?? user.email ?? "");
-    });
-    supabase.from("fixed_expenses").select("*").eq("user_id", user.id).order("day_of_month").then(({ data }) => {
-      setExpenses((data as FixedExpense[]) ?? []);
     });
   }, [open, user]);
 
@@ -98,33 +83,6 @@ const SettingsDialog = ({ open, onOpenChange }: Props) => {
       toast({ title: "Senha alterada" });
       setNewPassword("");
     }
-  };
-
-  const addExpense = async () => {
-    if (!user) return;
-    const amt = parseFloat(exAmount.replace(",", "."));
-    const day = parseInt(exDay);
-    if (!exName || !amt || !day || day < 1 || day > 31) {
-      toast({ title: "Dados inválidos", variant: "destructive" });
-      return;
-    }
-    const { data, error } = await supabase
-      .from("fixed_expenses")
-      .insert({ user_id: user.id, name: exName, amount: amt, day_of_month: day })
-      .select()
-      .single();
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-      return;
-    }
-    setExpenses((p) => [...p, data as FixedExpense]);
-    setExName(""); setExAmount(""); setExDay("");
-  };
-
-  const removeExpense = async (id: string) => {
-    const { error } = await supabase.from("fixed_expenses").delete().eq("id", id);
-    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
-    else setExpenses((p) => p.filter((e) => e.id !== id));
   };
 
   const openPortal = async () => {
@@ -188,7 +146,7 @@ const SettingsDialog = ({ open, onOpenChange }: Props) => {
             <TabsTrigger value="profile">Perfil</TabsTrigger>
             <TabsTrigger value="plan">Plano</TabsTrigger>
             <TabsTrigger value="password">Senha</TabsTrigger>
-            <TabsTrigger value="fixed">Fixas</TabsTrigger>
+            <TabsTrigger value="fixed">Contas</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile" className="space-y-4 overflow-y-auto pr-1">
@@ -308,31 +266,16 @@ const SettingsDialog = ({ open, onOpenChange }: Props) => {
           </TabsContent>
 
           <TabsContent value="fixed" className="space-y-3 overflow-y-auto pr-1">
-            <div className="grid grid-cols-2 gap-2">
-              <Input placeholder="Nome (Aluguel)" value={exName} onChange={(e) => setExName(e.target.value)} className="col-span-2" />
-              <Input placeholder="Valor" value={exAmount} onChange={(e) => setExAmount(e.target.value)} />
-              <Input placeholder="Dia (1-31)" value={exDay} onChange={(e) => setExDay(e.target.value)} />
+            <div className="border border-border rounded-lg p-5 text-center">
+              <CreditCard className="w-10 h-10 mx-auto text-primary mb-3" />
+              <h3 className="font-display font-bold">Contas a pagar</h3>
+              <p className="text-sm text-muted-foreground mt-1 mb-4">
+                Cadastre contas fixas, acompanhe vencimentos e marque pagamentos em um só lugar.
+              </p>
+              <Button asChild variant="hero" className="w-full" onClick={() => onOpenChange(false)}>
+                <Link to="/bills">Gerenciar contas <ArrowRight className="w-4 h-4" /></Link>
+              </Button>
             </div>
-            <Button onClick={addExpense} variant="hero" className="w-full">
-              <Plus className="w-4 h-4" /> Adicionar despesa fixa
-            </Button>
-            <ul className="space-y-2">
-              {expenses.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Nenhuma despesa fixa cadastrada</p>
-              ) : (
-                expenses.map((e) => (
-                  <li key={e.id} className="flex items-center justify-between bg-muted rounded-xl p-3">
-                    <div>
-                      <p className="font-semibold text-sm">{e.name}</p>
-                      <p className="text-xs text-muted-foreground">Dia {e.day_of_month} • R$ {Number(e.amount).toFixed(2)}</p>
-                    </div>
-                    <Button size="icon" variant="ghost" onClick={() => removeExpense(e.id)} className="h-8 w-8 text-muted-foreground hover:text-danger">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </li>
-                ))
-              )}
-            </ul>
           </TabsContent>
         </Tabs>
       </DialogContent>
