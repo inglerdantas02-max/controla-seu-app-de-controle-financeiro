@@ -40,7 +40,10 @@ export const useBills = (referenceMonth: Date) => {
 
   const refresh = useCallback(async () => {
     if (!user) return;
-    await supabase.rpc("generate_bill_occurrences", { _months_ahead: 3 });
+    const { error } = await supabase.rpc("generate_bill_occurrences", { _months_ahead: 12 });
+    if (error) {
+      toast({ title: "Erro ao atualizar contas fixas", description: error.message, variant: "destructive" });
+    }
     await Promise.all([loadBills(), loadOccurrences()]);
   }, [user, loadBills, loadOccurrences]);
 
@@ -155,11 +158,17 @@ export const useBills = (referenceMonth: Date) => {
           .eq("bill_id", id)
           .eq("status", "pending");
       }
-      toast({ title: id ? "Conta atualizada" : "Conta fixa criada" });
-      await refresh();
+      const { error: generationError } = await supabase.rpc("generate_bill_occurrences", { _months_ahead: 12 });
+      if (generationError) {
+        toast({ title: "Conta fixa salva, mas os vencimentos não foram gerados", description: generationError.message, variant: "destructive" });
+        await Promise.all([loadBills(), loadOccurrences()]);
+        return false;
+      }
+      await Promise.all([loadBills(), loadOccurrences()]);
+      toast({ title: id ? "Conta atualizada" : "Conta fixa criada", description: "O vencimento já está disponível em Contas." });
       return true;
     },
-    [user, refresh],
+    [user, loadBills, loadOccurrences],
   );
 
   const deleteBill = useCallback(

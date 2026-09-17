@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Settings, Shield, MessageCircle, TrendingDown, Inbox, Trash2, FileText, CalendarIcon, CreditCard, AlertTriangle, CheckCircle2, ArrowRight } from "lucide-react";
+import { Settings, Shield, MessageCircle, TrendingDown, Inbox, Trash2, FileText, CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -21,9 +21,7 @@ import PastDueBanner from "@/components/dashboard/PastDueBanner";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Progress } from "@/components/ui/progress";
-import { useBills } from "@/hooks/useBills";
-import { billState, formatBRL as formatBillBRL, formatDueDate, STATE_META, summarize } from "@/lib/bills";
+import BillsManager from "@/components/bills/BillsManager";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -84,8 +82,6 @@ const Dashboard = () => {
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const [fullName, setFullName] = useState<string>("");
-  const [billsMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const billsApi = useBills(billsMonth);
   const [insight, setInsight] = useState<string | null>(null);
   const [insightSeen, setInsightSeen] = useState<boolean>(false);
   const [pendingInsightForChat, setPendingInsightForChat] = useState<string | null>(null);
@@ -206,8 +202,6 @@ const Dashboard = () => {
     });
     return { filteredTxs: filtered, periodLabel: label };
   }, [txs, period, customDate]);
-
-  const billsSummary = useMemo(() => summarize(billsApi.occurrences), [billsApi.occurrences]);
 
   if (loading || subLoading) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   if (!user) return <Navigate to="/auth" replace />;
@@ -363,43 +357,16 @@ const Dashboard = () => {
           </Popover>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-4 mb-8">
+        <div className="mb-8">
           <div className="bg-gradient-primary text-primary-foreground p-6 rounded-lg shadow-glow">
             <div className="flex items-center gap-2 mb-1"><TrendingDown className="w-4 h-4" /><p className="text-sm opacity-80">Gastos • {periodLabel.toLowerCase()}</p></div>
             <p className="font-display text-3xl font-bold">{formatBRL(expense)}</p>
           </div>
-          <div className="bg-card border border-border p-6 rounded-lg">
-            <div className="flex items-center gap-2 mb-1"><CreditCard className="w-4 h-4 text-primary" /><p className="text-sm text-muted-foreground">Contas a pagar</p></div>
-            <p className="font-display text-3xl font-bold text-primary">{formatBillBRL(billsSummary.pending)}</p>
-            <p className="text-xs text-muted-foreground mt-1">{billsSummary.pendingCount} pendentes neste mês</p>
-          </div>
-          <div className="bg-card border border-border p-6 rounded-lg">
-            <div className="flex items-center gap-2 mb-1"><AlertTriangle className="w-4 h-4 text-danger" /><p className="text-sm text-muted-foreground">Contas vencidas</p></div>
-            <p className="font-display text-3xl font-bold text-danger">{formatBillBRL(billsSummary.overdue)}</p>
-            <p className="text-xs text-muted-foreground mt-1">{billsSummary.overdueCount} em atraso</p>
-          </div>
         </div>
 
-        <section className="mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <div><h2 className="font-display text-xl font-bold">Próximas contas</h2><p className="text-sm text-muted-foreground">Vencimentos do mês atual</p></div>
-            <Button asChild variant="outline" size="sm"><Link to="/bills">Ver todas <ArrowRight className="w-4 h-4" /></Link></Button>
-          </div>
-          <div className="bg-card border border-border rounded-lg p-4">
-            <div className="flex justify-between text-sm mb-2"><span>{billsSummary.paidCount} de {billsSummary.count} pagas</span><span className="font-semibold">{billsSummary.progress}%</span></div>
-            <Progress value={billsSummary.progress} className="h-2 bg-muted mb-4" />
-            {billsApi.occurrences.length === 0 ? (
-              <div className="text-center py-5"><CheckCircle2 className="w-9 h-9 mx-auto text-muted-foreground mb-2" /><p className="text-sm font-medium">Nenhuma conta cadastrada</p><Button asChild variant="link" size="sm"><Link to="/bills">Adicionar conta</Link></Button></div>
-            ) : (
-              <ul className="divide-y divide-border">
-                {billsApi.occurrences.filter((item) => item.status !== "paid").slice(0, 4).map((item) => {
-                  const state = billState(item);
-                  return <li key={item.id} className="py-3 flex items-center justify-between gap-3"><div className="flex items-center gap-3 min-w-0"><span className={`w-2.5 h-2.5 rounded-full shrink-0 ${STATE_META[state].dot}`} /><div className="min-w-0"><p className="font-medium truncate">{item.name}</p><p className="text-xs text-muted-foreground">Vence em {formatDueDate(item.due_date)}</p></div></div><p className="font-display font-bold shrink-0">{formatBillBRL(Number(item.amount))}</p></li>;
-                })}
-              </ul>
-            )}
-          </div>
-        </section>
+        <div className="mb-8">
+          <BillsManager />
+        </div>
 
         {/* Coach financeiro: insights inteligentes do dia */}
         {(coachInsights.length > 0 || localInsights.length > 0 || comparison) && (

@@ -8,7 +8,7 @@
 - [x] Substituir gerenciamento antigo de despesas fixas nas configurações
 - [x] Adicionar consultas de contas ao assistente
 - [x] Validar compilação e fluxos no desktop e celular
-- [ ] Exibir o gerenciamento completo de contas diretamente no dashboard
-- [ ] Remover contas a pagar das configurações
-- [ ] Gerar e exibir imediatamente os vencimentos das contas fixas
+- [x] Exibir o gerenciamento completo de contas diretamente no dashboard
+- [x] Remover contas a pagar das configurações
+- [x] Gerar e exibir imediatamente os vencimentos das contas fixas
 - [ ] Validar cadastro fixo e avulso no dashboard em celular e computador
