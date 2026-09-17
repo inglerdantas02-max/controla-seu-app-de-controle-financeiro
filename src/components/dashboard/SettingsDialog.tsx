@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +21,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useCheckout } from "@/hooks/useCheckout";
 import { signOut } from "@/lib/auth";
 import { toast } from "@/hooks/use-toast";
-import { LogOut, Trash2, Loader2, ExternalLink, Sparkles, CreditCard, ArrowRight } from "lucide-react";
+import { LogOut, Trash2, Loader2, ExternalLink, Sparkles } from "lucide-react";
 import { getStripeEnvironment } from "@/lib/stripe";
 
 interface Props {
@@ -142,11 +141,10 @@ const SettingsDialog = ({ open, onOpenChange }: Props) => {
           <DialogTitle className="font-display">Configurações</DialogTitle>
         </DialogHeader>
         <Tabs defaultValue="profile" className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid grid-cols-4">
+          <TabsList className="grid grid-cols-3">
             <TabsTrigger value="profile">Perfil</TabsTrigger>
             <TabsTrigger value="plan">Plano</TabsTrigger>
             <TabsTrigger value="password">Senha</TabsTrigger>
-            <TabsTrigger value="fixed">Contas</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile" className="space-y-4 overflow-y-auto pr-1">
@@ -265,18 +263,6 @@ const SettingsDialog = ({ open, onOpenChange }: Props) => {
             </Button>
           </TabsContent>
 
-          <TabsContent value="fixed" className="space-y-3 overflow-y-auto pr-1">
-            <div className="border border-border rounded-lg p-5 text-center">
-              <CreditCard className="w-10 h-10 mx-auto text-primary mb-3" />
-              <h3 className="font-display font-bold">Contas a pagar</h3>
-              <p className="text-sm text-muted-foreground mt-1 mb-4">
-                Cadastre contas fixas, acompanhe vencimentos e marque pagamentos em um só lugar.
-              </p>
-              <Button asChild variant="hero" className="w-full" onClick={() => onOpenChange(false)}>
-                <Link to="/bills">Gerenciar contas <ArrowRight className="w-4 h-4" /></Link>
-              </Button>
-            </div>
-          </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>
