@@ -11,4 +11,4 @@
 - [x] Exibir o gerenciamento completo de contas diretamente no dashboard
 - [x] Remover contas a pagar das configurações
 - [x] Gerar e exibir imediatamente os vencimentos das contas fixas
-- [ ] Validar cadastro fixo e avulso no dashboard em celular e computador
+- [x] Validar cadastro fixo e avulso no dashboard em celular e computador
