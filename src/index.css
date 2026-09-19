@@ -36,6 +36,14 @@
     --danger: 0 85% 60%;                /* vermelho saída */
     --danger-foreground: 0 0% 100%;
 
+    --chart-1: 258 89% 60%;
+    --chart-2: 220 100% 62%;
+    --chart-3: 200 100% 48%;
+    --chart-4: 152 76% 40%;
+    --chart-5: 38 92% 52%;
+    --chart-6: 0 85% 60%;
+    --chart-7: 320 72% 58%;
+
     --destructive: 0 85% 60%;
     --destructive-foreground: 0 0% 100%;
 
@@ -98,6 +106,14 @@
 
     --danger: 0 85% 65%;
     --danger-foreground: 0 0% 100%;
+
+    --chart-1: 270 95% 70%;
+    --chart-2: 220 100% 65%;
+    --chart-3: 200 100% 60%;
+    --chart-4: 152 76% 50%;
+    --chart-5: 38 92% 60%;
+    --chart-6: 0 85% 65%;
+    --chart-7: 320 72% 68%;
 
     --destructive: 0 85% 65%;
     --destructive-foreground: 0 0% 100%;
