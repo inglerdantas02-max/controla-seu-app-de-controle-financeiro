@@ -22,6 +22,7 @@ import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import BillsManager from "@/components/bills/BillsManager";
+import ExpenseDonutChart from "@/components/dashboard/ExpenseDonutChart";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -207,7 +208,8 @@ const Dashboard = () => {
   if (!user) return <Navigate to="/auth" replace />;
   if (isBlocked) return <Paywall />;
 
-  const expense = filteredTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
+  const filteredExpenses = filteredTxs.filter((t) => t.type === "expense");
+  const expense = filteredExpenses.reduce((s, t) => s + Number(t.amount), 0);
 
   const firstName = (fullName || user.email?.split("@")[0] || "").trim().split(" ")[0];
   const capitalized = firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : "";
@@ -224,7 +226,16 @@ const Dashboard = () => {
   });
 
   const todayExpense = todayTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
+  const todayExpenseCount = todayTxs.filter((t) => t.type === "expense").length;
   const yesterdayExpense = yesterdayTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
+  const hourInBrasilia = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Sao_Paulo",
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).format(now),
+  );
+  const canAssessToday = hourInBrasilia >= 18 && todayExpenseCount >= 2;
 
   // Maior categoria de gasto do dia
   const todayExpenseByCat = todayTxs
@@ -244,16 +255,14 @@ const Dashboard = () => {
 
   // Insights automáticos (frases curtas)
   const localInsights: string[] = [];
-  if (todayTxs.length === 0) {
-    localInsights.push("Seu dia ainda está sem movimentações.");
-  } else {
+  if (canAssessToday) {
     if (todayExpense > 0) localInsights.push(`Hoje você gastou ${formatBRL(todayExpense)}.`);
     if (topCategory && todayExpense > 0) localInsights.push(`Seu maior gasto foi com ${topCategory}.`);
   }
 
   // Comparação com ontem (apenas se houver dado de ontem)
   let comparison: { text: string; tone: "good" | "bad" | "neutral" } | null = null;
-  if (yesterdayExpense > 0 && (todayExpense > 0 || todayTxs.length > 0)) {
+  if (canAssessToday && yesterdayExpense > 0 && todayExpense > 0) {
     if (todayExpense > yesterdayExpense) {
       const pct = Math.round(((todayExpense - yesterdayExpense) / yesterdayExpense) * 100);
       comparison = { text: `Seu gasto aumentou ${pct}% em relação a ontem.`, tone: "bad" };
@@ -363,6 +372,8 @@ const Dashboard = () => {
             <p className="font-display text-3xl font-bold">{formatBRL(expense)}</p>
           </div>
         </div>
+
+        <ExpenseDonutChart expenses={filteredExpenses} periodLabel={periodLabel} />
 
         <div className="mb-8">
           <BillsManager />
