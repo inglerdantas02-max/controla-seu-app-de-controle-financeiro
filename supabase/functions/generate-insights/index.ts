@@ -56,6 +56,7 @@ Deno.serve(async (req) => {
     const y = nowBR.getUTCFullYear();
     const m = nowBR.getUTCMonth();
     const today = nowBR.getUTCDate();
+    const currentHour = nowBR.getUTCHours();
     const dow = nowBR.getUTCDay(); // 0=dom..6=sab
     const lastDayOfMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
     const isEndOfMonth = lastDayOfMonth - today <= 2;
@@ -108,7 +109,7 @@ Deno.serve(async (req) => {
     let monthIncome = 0, monthExpense = 0;
     const monthExpByCat: Record<string, number> = {};
     const todayExpByCat: Record<string, number> = {};
-    let todayExpense = 0, todayIncome = 0, todayCount = 0;
+    let todayExpense = 0, todayIncome = 0, todayCount = 0, todayExpenseCount = 0;
     let yesterdayExpense = 0;
     let weekExpense = 0, weekIncome = 0;
     let prevWeekExpense = 0;
@@ -149,6 +150,7 @@ Deno.serve(async (req) => {
         if (t.type === "income") todayIncome += amt;
         else {
           todayExpense += amt;
+          todayExpenseCount++;
           const c = t.category || "Outros";
           todayExpByCat[c] = (todayExpByCat[c] || 0) + amt;
         }
@@ -198,6 +200,9 @@ Deno.serve(async (req) => {
 
     const insights: Insight[] = [];
     const named = (s: string) => (firstName ? `${firstName}, ${s}` : s.charAt(0).toUpperCase() + s.slice(1));
+    // O coach só fecha conclusões do dia após as 18h em Brasília e com
+    // pelo menos duas despesas. Antes disso, prioriza padrões consolidados.
+    const canAssessToday = currentHour >= 18 && todayExpenseCount >= 2;
 
     // ===== 1) ALERTAS DE SALDO E FECHAMENTO DE MÊS =====
     if (isEndOfMonth) {
@@ -234,7 +239,7 @@ Deno.serve(async (req) => {
     }
 
     // ===== 2) COMPARAÇÃO HOJE vs ONTEM =====
-    if (todayExpense > 0 && yesterdayExpense > 0) {
+    if (canAssessToday && todayExpense > 0 && yesterdayExpense > 0) {
       if (todayExpense > yesterdayExpense * 1.5) {
         const pct = Math.round(((todayExpense - yesterdayExpense) / yesterdayExpense) * 100);
         insights.push({
@@ -312,7 +317,7 @@ Deno.serve(async (req) => {
     }
 
     // ===== 7) MAIOR GASTO DE HOJE =====
-    if (todayExpense > 0) {
+    if (canAssessToday && todayExpense > 0) {
       const topT = Object.entries(todayExpByCat).sort((a, b) => b[1] - a[1])[0];
       if (topT) {
         insights.push({
@@ -324,7 +329,7 @@ Deno.serve(async (req) => {
     }
 
     // ===== 8) MUITAS TRANSAÇÕES NO DIA =====
-    if (todayCount >= 6) {
+    if (canAssessToday && todayCount >= 6) {
       insights.push({
         id: "many-today",
         text: `⚠️ Você já registrou ${todayCount} movimentações hoje. Que tal dar uma respirada nos gastos?`,
@@ -334,7 +339,7 @@ Deno.serve(async (req) => {
     }
 
     // ===== 9) DIA SEM REGISTRO (CTA suave) =====
-    if (todayCount === 0 && all.length > 0) {
+    if (currentHour >= 18 && todayCount === 0 && all.length > 0) {
       insights.push({
         id: "today-empty",
         text: `${firstName ? firstName + ", q" : "Q"}ue tal registrar como o dia tá indo? 👇`,

@@ -12,3 +12,6 @@
 - [x] Remover contas a pagar das configurações
 - [x] Gerar e exibir imediatamente os vencimentos das contas fixas
 - [x] Validar cadastro fixo e avulso no dashboard em celular e computador
+- [x] Adicionar gráfico circular de despesas por categoria ao dashboard
+- [x] Ajustar o coach para conclusões diárias somente após 18h e com dados suficientes
+- [x] Validar gráfico e coach em celular e computador
