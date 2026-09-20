@@ -5,7 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 // baseados nos dados reais do usuário. Sem IA, sem custo, rápido.
 //
 // Tipos de insight:
-//  - alert     → algo que precisa de atenção imediata (saldo baixo, pico, mês negativo)
+//  - alert     → algo que precisa de atenção imediata (pico ou concentração de gastos)
 //  - pattern   → padrão recorrente identificado (Uber diário, fim de semana caro)
 //  - trend     → comparação com período anterior (gastou mais que ontem, semana cara)
 //  - tip       → sugestão prática de ação
@@ -43,12 +43,11 @@ Deno.serve(async (req) => {
     // Nome (para personalização)
     const { data: profile } = await supabase
       .from("profiles")
-      .select("full_name, initial_balance")
+      .select("full_name")
       .eq("id", user.id)
       .maybeSingle();
     const firstName = ((profile?.full_name || "").trim().split(" ")[0] || "")
       .replace(/^./, (c) => c.toUpperCase());
-    const initialBalance = Number(profile?.initial_balance ?? 0);
 
     // Datas em fuso BR
     const TZ = -3 * 60 * 60 * 1000;
@@ -104,14 +103,12 @@ Deno.serve(async (req) => {
 
     const all = last30Tx || [];
 
-    // Saldo total (entradas - saídas considerando todas as transações conhecidas)
-    // Como só temos 30d, isso é apenas para alerta de saldo baixo do mês
-    let monthIncome = 0, monthExpense = 0;
+    let monthExpense = 0;
     const monthExpByCat: Record<string, number> = {};
     const todayExpByCat: Record<string, number> = {};
-    let todayExpense = 0, todayIncome = 0, todayCount = 0, todayExpenseCount = 0;
+    let todayExpense = 0, todayCount = 0, todayExpenseCount = 0;
     let yesterdayExpense = 0;
-    let weekExpense = 0, weekIncome = 0;
+    let weekExpense = 0;
     let prevWeekExpense = 0;
     const weekExpByCat: Record<string, number> = {};
 
@@ -136,8 +133,7 @@ Deno.serve(async (req) => {
 
       // Mês corrente
       if (occISO >= startMonthUTC && occISO <= endMonthUTC) {
-        if (t.type === "income") monthIncome += amt;
-        else {
+        if (t.type === "expense") {
           monthExpense += amt;
           const c = t.category || "Outros";
           monthExpByCat[c] = (monthExpByCat[c] || 0) + amt;
@@ -147,8 +143,7 @@ Deno.serve(async (req) => {
       // Hoje
       if (occISO >= todayR.start && occISO <= todayR.end) {
         todayCount++;
-        if (t.type === "income") todayIncome += amt;
-        else {
+        if (t.type === "expense") {
           todayExpense += amt;
           todayExpenseCount++;
           const c = t.category || "Outros";
@@ -163,8 +158,7 @@ Deno.serve(async (req) => {
 
       // Semana corrente
       if (occISO >= weekStartUTC) {
-        if (t.type === "income") weekIncome += amt;
-        else {
+        if (t.type === "expense") {
           weekExpense += amt;
           const c = t.category || "Outros";
           weekExpByCat[c] = (weekExpByCat[c] || 0) + amt;
@@ -188,52 +182,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    const monthBalance = monthIncome - monthExpense;
-    // Saldo "atual" estimado a partir do que temos (initial_balance + variação dos últimos 30d)
-    // Não é perfeito, mas serve para alerta de saldo baixo.
-    let last30Income = 0, last30Expense = 0;
-    for (const t of all) {
-      if (t.type === "income") last30Income += Number(t.amount);
-      else last30Expense += Number(t.amount);
-    }
-    const estimatedBalance = initialBalance + last30Income - last30Expense;
-
     const insights: Insight[] = [];
     const named = (s: string) => (firstName ? `${firstName}, ${s}` : s.charAt(0).toUpperCase() + s.slice(1));
     // O coach só fecha conclusões do dia após as 18h em Brasília e com
     // pelo menos duas despesas. Antes disso, prioriza padrões consolidados.
     const canAssessToday = currentHour >= 18 && todayExpenseCount >= 2;
 
-    // ===== 1) ALERTAS DE SALDO E FECHAMENTO DE MÊS =====
-    if (isEndOfMonth) {
-      if (monthBalance < 0 && monthExpense > 0) {
-        insights.push({
-          id: "month-negative",
-          text: `⚠️ ${named(`o mês está fechando no vermelho: ${fmt(Math.abs(monthBalance))} a mais em saídas do que entradas.`)}`,
-          tone: "danger",
-          action: "Quanto eu gastei esse mês?",
-        });
-      } else if (monthIncome > 0 && monthBalance > 0 && monthBalance / monthIncome >= 0.3) {
-        insights.push({
-          id: "month-healthy",
-          text: `✅ ${named(`o mês está fechando saudável! Saldo positivo de ${fmt(monthBalance)}.`)}`,
-          tone: "success",
-          action: "Me mostra o resumo do mês",
-        });
-      }
-    }
-
-    if (estimatedBalance > 0 && estimatedBalance < 100 && monthExpense > 200) {
+    // ===== 1) FECHAMENTO DO MÊS BASEADO SOMENTE EM DESPESAS =====
+    if (isEndOfMonth && monthExpense > 0) {
       insights.push({
-        id: "low-balance",
-        text: `🚨 Seu saldo estimado está baixo (${fmt(estimatedBalance)}). Cuidado com novos gastos.`,
-        tone: "danger",
-      });
-    } else if (estimatedBalance < 0) {
-      insights.push({
-        id: "negative-balance",
-        text: `🚨 Seu saldo está negativo (${fmt(estimatedBalance)}). Hora de segurar as despesas.`,
-        tone: "danger",
+        id: "month-expense-summary",
+        text: `📊 ${named(`suas despesas somam ${fmt(monthExpense)} neste mês. Vale revisar as categorias com maior peso antes do fechamento.`)}`,
+        tone: "info",
         action: "Quais foram meus maiores gastos esse mês?",
       });
     }
@@ -351,7 +311,7 @@ Deno.serve(async (req) => {
     if (all.length === 0) {
       insights.push({
         id: "first-time",
-        text: `${firstName ? "Bem-vindo, " + firstName + "! " : "Bem-vindo! "}Me conta seus gastos e entradas que eu organizo tudo pra você 🚀`,
+        text: `${firstName ? "Bem-vindo, " + firstName + "! " : "Bem-vindo! "}Me conta seus gastos que eu organizo tudo pra você 🚀`,
         tone: "info",
       });
     }

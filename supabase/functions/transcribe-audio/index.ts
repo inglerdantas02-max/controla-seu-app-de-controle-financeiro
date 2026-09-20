@@ -31,13 +31,11 @@ REGRAS OBRIGATÓRIAS:
    - NUNCA escreva valor por extenso na saída. SEMPRE como "R$ N" ou "R$ N,NN".
 4. Corrija palavras mal pronunciadas, gírias e termos coloquiais:
    - "almoco" -> "almoço"; "gasolinha" -> "gasolina"; "merca"/"mercadinho" -> "mercado"
-   - "salario" -> "salário"; "frila"/"freela" -> "freela"
+   - Reconheça corretamente nomes de estabelecimentos, produtos e serviços citados
    - "rangu"/"boia"/"janta" -> mantenha "comida"/"jantar" se for o caso
    - "trampo" -> "trabalho"; "grana"/"bufunfa" -> mantenha valor + contexto
    - Capitalize nomes próprios: Uber, iFood, Pix, Netflix, Spotify, 99, Mercado Livre, Amazon
-5. Identifique a INTENÇÃO financeira e use o verbo correto:
-   - Saída: "gastei", "paguei", "comprei", "torrei", "gastando" -> use "Gastei" ou "Paguei"
-   - Entrada: "ganhei", "recebi", "vendi", "caiu", "entrou", "pingou" -> use "Ganhei" ou "Recebi"
+5. Identifique gastos e despesas: "gastei", "paguei", "comprei", "torrei", "gastando" -> use "Gastei" ou "Paguei".
 6. Mantenha o SENTIDO ORIGINAL. NÃO invente valores, datas, categorias ou produtos que não foram ditos.
 7. Se o áudio estiver inaudível, ininteligível, vazio, ou for apenas ruído/respiração: responda EXATAMENTE "INAUDIVEL".
 8. Se a frase NÃO tiver relação com finanças (ex: "oi tudo bem", "que horas são"): transcreva normal mesmo assim — o assistente trata depois.
@@ -45,13 +43,8 @@ REGRAS OBRIGATÓRIAS:
 
 EXEMPLOS:
 Áudio: "gastei trinta real no almoco"           -> Gastei R$ 30 no almoço.
-Áudio: "ganhei dusento hoje"                    -> Ganhei R$ 200 hoje.
 Áudio: "paguei cinquenta e cinco na gasolinha"  -> Paguei R$ 55 na gasolina.
-Áudio: "recebi meu salario de dois mil"         -> Recebi meu salário de R$ 2000.
-Áudio: "vendi um produto por cento e cinquenta" -> Vendi um produto por R$ 150.
 Áudio: "torrei vinte conto no ifood"            -> Gastei R$ 20 no iFood.
-Áudio: "pinguei um pix de quinhentos"           -> Recebi um Pix de R$ 500.
-Áudio: "frila de trezentos"                     -> Recebi R$ 300 de freela.
 Áudio: "uber doze e oitenta"                    -> Gastei R$ 12,80 no Uber.
 Áudio: "quanto eu gastei essa semana"           -> Quanto eu gastei essa semana?`;
 
