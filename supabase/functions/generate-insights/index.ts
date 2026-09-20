@@ -95,8 +95,9 @@ Deno.serve(async (req) => {
     // Carrega tudo dos últimos 30 dias (suficiente p/ análises)
     const { data: last30Tx } = await supabase
       .from("transactions")
-      .select("type, amount, category, occurred_at")
+      .select("amount, category, occurred_at")
       .eq("user_id", user.id)
+      .eq("type", "expense")
       .gte("occurred_at", last30StartUTC)
       .order("occurred_at", { ascending: true })
       .limit(5000);
@@ -133,53 +134,45 @@ Deno.serve(async (req) => {
 
       // Mês corrente
       if (occISO >= startMonthUTC && occISO <= endMonthUTC) {
-        if (t.type === "expense") {
-          monthExpense += amt;
-          const c = t.category || "Outros";
-          monthExpByCat[c] = (monthExpByCat[c] || 0) + amt;
-        }
+        monthExpense += amt;
+        const c = t.category || "Outros";
+        monthExpByCat[c] = (monthExpByCat[c] || 0) + amt;
       }
 
       // Hoje
       if (occISO >= todayR.start && occISO <= todayR.end) {
         todayCount++;
-        if (t.type === "expense") {
-          todayExpense += amt;
-          todayExpenseCount++;
-          const c = t.category || "Outros";
-          todayExpByCat[c] = (todayExpByCat[c] || 0) + amt;
-        }
+        todayExpense += amt;
+        todayExpenseCount++;
+        const c = t.category || "Outros";
+        todayExpByCat[c] = (todayExpByCat[c] || 0) + amt;
       }
 
       // Ontem
       if (occISO >= yesterdayR.start && occISO <= yesterdayR.end) {
-        if (t.type === "expense") yesterdayExpense += amt;
+        yesterdayExpense += amt;
       }
 
       // Semana corrente
       if (occISO >= weekStartUTC) {
-        if (t.type === "expense") {
-          weekExpense += amt;
-          const c = t.category || "Outros";
-          weekExpByCat[c] = (weekExpByCat[c] || 0) + amt;
-        }
+        weekExpense += amt;
+        const c = t.category || "Outros";
+        weekExpByCat[c] = (weekExpByCat[c] || 0) + amt;
       }
 
       // Semana anterior
       if (occISO >= prevWeekStartUTC && occISO <= prevWeekEndUTC) {
-        if (t.type === "expense") prevWeekExpense += amt;
+        prevWeekExpense += amt;
       }
 
       // Padrões: somente saídas com categoria
-      if (t.type === "expense" && t.category) {
+      if (t.category) {
         patternCount[t.category] = (patternCount[t.category] || 0) + 1;
       }
 
       // Dia da semana (saídas)
-      if (t.type === "expense") {
-        dowExpense[occDow] += amt;
-        dowDaysWithData[occDow].add(dayKey);
-      }
+      dowExpense[occDow] += amt;
+      dowDaysWithData[occDow].add(dayKey);
     }
 
     const insights: Insight[] = [];
