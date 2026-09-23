@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, CreditCard, Pencil, Plus, Repeat2, Trash2 } from "lucide-react";
 import { useBills } from "@/hooks/useBills";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,14 @@ import { Bill, BillOccurrence, MONTH_NAMES, PERIODICITY_LABELS, STATE_META, bill
 import { cn } from "@/lib/utils";
 
 const moveMonth = (date: Date, offset: number) => new Date(date.getFullYear(), date.getMonth() + offset, 1);
+type BillFilter = "all" | "paid" | "pending" | "overdue";
+
+const FILTER_LABELS: Record<BillFilter, string> = {
+  all: "Todas as contas",
+  paid: "Contas pagas",
+  pending: "Contas a pagar",
+  overdue: "Contas vencidas",
+};
 
 interface Props {
   showHeading?: boolean;
@@ -27,6 +35,9 @@ export default function BillsManager({ showHeading = true }: Props) {
   const [paying, setPaying] = useState<BillOccurrence | null>(null);
   const [deletingOccurrence, setDeletingOccurrence] = useState<BillOccurrence | null>(null);
   const [deletingBill, setDeletingBill] = useState<Bill | null>(null);
+  const [activeTab, setActiveTab] = useState("list");
+  const [filter, setFilter] = useState<BillFilter>("all");
+  const listRef = useRef<HTMLDivElement>(null);
 
   const summary = useMemo(() => summarize(billsApi.occurrences), [billsApi.occurrences]);
   const calendarDays = useMemo(() => {
@@ -42,12 +53,24 @@ export default function BillsManager({ showHeading = true }: Props) {
     }
     return map;
   }, [billsApi.occurrences]);
+  const filteredOccurrences = useMemo(() => billsApi.occurrences.filter((occurrence) => {
+    if (filter === "all") return true;
+    if (filter === "paid") return occurrence.status === "paid";
+    if (filter === "overdue") return billState(occurrence) === "overdue";
+    return occurrence.status === "pending";
+  }), [billsApi.occurrences, filter]);
 
   const openNew = (mode: "single" | "recurring") => {
     setEditingBill(null);
     setEditingOccurrence(null);
     setFormMode(mode);
     setFormOpen(true);
+  };
+
+  const showFilteredList = (nextFilter: BillFilter) => {
+    setFilter(nextFilter);
+    setActiveTab("list");
+    window.requestAnimationFrame(() => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
   return (
@@ -70,10 +93,10 @@ export default function BillsManager({ showHeading = true }: Props) {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <div className="bg-card border border-border rounded-lg p-4"><p className="text-xs text-muted-foreground">Total do mês</p><p className="font-display text-xl font-bold mt-1">{formatBRL(summary.total)}</p><p className="text-xs text-muted-foreground mt-1">{summary.count} contas</p></div>
-        <div className="bg-success/10 border border-success/20 rounded-lg p-4"><p className="text-xs text-success">Pagas</p><p className="font-display text-xl font-bold text-success mt-1">{formatBRL(summary.paid)}</p><p className="text-xs text-success/80 mt-1">{summary.paidCount} concluídas</p></div>
-        <div className="bg-primary/10 border border-primary/20 rounded-lg p-4"><p className="text-xs text-primary">A pagar</p><p className="font-display text-xl font-bold text-primary mt-1">{formatBRL(summary.pending)}</p><p className="text-xs text-primary/80 mt-1">{summary.pendingCount} pendentes</p></div>
-        <div className="bg-danger/10 border border-danger/20 rounded-lg p-4"><p className="text-xs text-danger">Vencidas</p><p className="font-display text-xl font-bold text-danger mt-1">{formatBRL(summary.overdue)}</p><p className="text-xs text-danger/80 mt-1">{summary.overdueCount} atrasadas</p></div>
+        <Button type="button" variant="ghost" onClick={() => showFilteredList("all")} aria-pressed={filter === "all"} className={cn("h-auto min-h-24 flex-col items-start justify-center bg-card border border-border rounded-lg p-4 text-left transition-shadow hover:bg-card hover:shadow-sm", filter === "all" && "ring-2 ring-foreground/20")}><span className="text-xs font-normal text-muted-foreground">Total do mês</span><span className="font-display text-xl font-bold mt-1">{formatBRL(summary.total)}</span><span className="text-xs font-normal text-muted-foreground mt-1">{summary.count} contas</span></Button>
+        <Button type="button" variant="ghost" onClick={() => showFilteredList("paid")} aria-pressed={filter === "paid"} className={cn("h-auto min-h-24 flex-col items-start justify-center bg-success/10 border border-success/20 rounded-lg p-4 text-left transition-shadow hover:bg-success/15 hover:text-success", filter === "paid" && "ring-2 ring-success/40")}><span className="text-xs font-normal text-success">Pagas</span><span className="font-display text-xl font-bold text-success mt-1">{formatBRL(summary.paid)}</span><span className="text-xs font-normal text-success/80 mt-1">{summary.paidCount} concluídas</span></Button>
+        <Button type="button" variant="ghost" onClick={() => showFilteredList("pending")} aria-pressed={filter === "pending"} className={cn("h-auto min-h-24 flex-col items-start justify-center bg-primary/10 border border-primary/20 rounded-lg p-4 text-left transition-shadow hover:bg-primary/15 hover:text-primary", filter === "pending" && "ring-2 ring-primary/40")}><span className="text-xs font-normal text-primary">A pagar</span><span className="font-display text-xl font-bold text-primary mt-1">{formatBRL(summary.pending)}</span><span className="text-xs font-normal text-primary/80 mt-1">{summary.pendingCount} pendentes</span></Button>
+        <Button type="button" variant="ghost" onClick={() => showFilteredList("overdue")} aria-pressed={filter === "overdue"} className={cn("h-auto min-h-24 flex-col items-start justify-center bg-danger/10 border border-danger/20 rounded-lg p-4 text-left transition-shadow hover:bg-danger/15 hover:text-danger", filter === "overdue" && "ring-2 ring-danger/40")}><span className="text-xs font-normal text-danger">Vencidas</span><span className="font-display text-xl font-bold text-danger mt-1">{formatBRL(summary.overdue)}</span><span className="text-xs font-normal text-danger/80 mt-1">{summary.overdueCount} atrasadas</span></Button>
       </div>
 
       <div className="bg-card border border-border rounded-lg p-4 mb-6">
@@ -81,18 +104,18 @@ export default function BillsManager({ showHeading = true }: Props) {
         <Progress value={summary.progress} className="h-2 bg-muted" />
       </div>
 
-      <Tabs defaultValue="list" className="space-y-5">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
         <TabsList className="grid grid-cols-3 w-full sm:w-[480px]">
           <TabsTrigger value="list"><CreditCard className="w-4 h-4 mr-1.5" /> Contas</TabsTrigger>
           <TabsTrigger value="calendar"><CalendarDays className="w-4 h-4 mr-1.5" /> Calendário</TabsTrigger>
           <TabsTrigger value="fixed"><Repeat2 className="w-4 h-4 mr-1.5" /> Fixas</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="list">
-          <div className="flex justify-between items-center gap-3 mb-3"><h3 className="font-display text-lg sm:text-xl font-bold">Vencimentos de {MONTH_NAMES[referenceMonth.getMonth()].toLowerCase()}</h3><Button variant="outline" size="sm" onClick={() => openNew("single")}><Plus className="w-4 h-4" /> Avulsa</Button></div>
+        <TabsContent value="list" ref={listRef} className="scroll-mt-4">
+          <div className="flex justify-between items-center gap-3 mb-3"><div><h3 className="font-display text-lg sm:text-xl font-bold">{FILTER_LABELS[filter]}</h3><p className="text-xs text-muted-foreground mt-0.5">{MONTH_NAMES[referenceMonth.getMonth()]} de {referenceMonth.getFullYear()}</p></div><Button variant="outline" size="sm" onClick={() => openNew("single")}><Plus className="w-4 h-4" /> Avulsa</Button></div>
           {billsApi.loading ? <p className="text-sm text-muted-foreground py-8">Carregando contas...</p> : billsApi.occurrences.length === 0 ? (
             <div className="border border-dashed border-border rounded-lg py-12 px-6 text-center"><CalendarDays className="w-10 h-10 mx-auto text-muted-foreground mb-3" /><p className="font-semibold">Nenhuma conta neste mês</p><p className="text-sm text-muted-foreground mt-1 mb-4">Adicione uma conta avulsa ou cadastre uma conta fixa.</p><div className="flex flex-wrap justify-center gap-2"><Button variant="hero" onClick={() => openNew("single")}><Plus className="w-4 h-4" /> Avulsa</Button><Button variant="outline" onClick={() => openNew("recurring")}><Repeat2 className="w-4 h-4" /> Fixa</Button></div></div>
-          ) : <ul className="space-y-2">{billsApi.occurrences.map((occurrence) => <BillRow key={occurrence.id} occurrence={occurrence} onPay={setPaying} onUndo={billsApi.markPending} onEdit={(item) => { setEditingOccurrence(item); setEditingBill(null); setFormOpen(true); }} onDelete={setDeletingOccurrence} />)}</ul>}
+          ) : filteredOccurrences.length === 0 ? <div className="border border-dashed border-border rounded-lg py-10 px-6 text-center"><p className="font-semibold">Nenhuma conta neste grupo</p><p className="text-sm text-muted-foreground mt-1">Selecione outro cartão para consultar as demais contas.</p></div> : <ul className="space-y-2">{filteredOccurrences.map((occurrence) => <BillRow key={occurrence.id} occurrence={occurrence} onPay={setPaying} onUndo={billsApi.markPending} onEdit={(item) => { setEditingOccurrence(item); setEditingBill(null); setFormOpen(true); }} onDelete={setDeletingOccurrence} />)}</ul>}
         </TabsContent>
 
         <TabsContent value="calendar">

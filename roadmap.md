@@ -15,3 +15,4 @@
 - [x] Adicionar gráfico circular de despesas por categoria ao dashboard
 - [x] Ajustar o coach para conclusões diárias somente após 18h e com dados suficientes
 - [x] Validar gráfico e coach em celular e computador
+- [x] Transformar os cartões de contas em filtros rápidos da lista
