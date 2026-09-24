@@ -17,10 +17,11 @@ export default function BillRow({ occurrence, onPay, onUndo, onEdit, onDelete }:
   const meta = STATE_META[state];
   return (
     <li className={cn(
-      "border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center gap-3 transition-colors",
-      state === "overdue" && "bg-danger/10 border-danger/40",
-      (state === "today" || state === "soon") && "bg-warning/15 border-warning/50",
-      (state === "upcoming" || state === "paid") && "bg-card border-border",
+      "border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center gap-3 shadow-sm transition-colors",
+      state === "overdue" && "bg-danger/15 border-danger/40",
+      (state === "today" || state === "soon") && "bg-warning/20 border-warning/50",
+      state === "upcoming" && "bg-secondary/10 border-secondary/30",
+      state === "paid" && "bg-success/10 border-success/30",
     )}>
       <div className="flex items-start gap-3 min-w-0 flex-1">
         <span className={cn("mt-1.5 w-2.5 h-2.5 rounded-full shrink-0", meta.dot)} aria-hidden="true" />
