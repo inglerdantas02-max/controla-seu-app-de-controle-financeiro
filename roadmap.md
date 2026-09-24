@@ -17,3 +17,4 @@
 - [x] Validar gráfico e coach em celular e computador
 - [x] Transformar os cartões de contas em filtros rápidos da lista
 - [x] Priorizar contas por vencimento e destacar urgências na linha inteira
+- [x] Colorir todas as contas conforme o estado de pagamento e vencimento
