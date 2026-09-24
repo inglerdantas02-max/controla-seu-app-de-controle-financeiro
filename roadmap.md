@@ -16,3 +16,4 @@
 - [x] Ajustar o coach para conclusões diárias somente após 18h e com dados suficientes
 - [x] Validar gráfico e coach em celular e computador
 - [x] Transformar os cartões de contas em filtros rápidos da lista
+- [x] Priorizar contas por vencimento e destacar urgências na linha inteira

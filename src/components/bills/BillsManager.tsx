@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, CreditCard, Pencil, Plus, Repeat2, Trash2 } from "lucide-react";
 import { useBills } from "@/hooks/useBills";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,14 @@ const FILTER_LABELS: Record<BillFilter, string> = {
   overdue: "Contas vencidas",
 };
 
+const STATE_PRIORITY = {
+  overdue: 0,
+  today: 1,
+  soon: 2,
+  upcoming: 3,
+  paid: 4,
+} as const;
+
 interface Props {
   showHeading?: boolean;
 }
@@ -37,7 +45,13 @@ export default function BillsManager({ showHeading = true }: Props) {
   const [deletingBill, setDeletingBill] = useState<Bill | null>(null);
   const [activeTab, setActiveTab] = useState("list");
   const [filter, setFilter] = useState<BillFilter>("all");
+  const [timeMarker, setTimeMarker] = useState(() => Date.now());
   const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setTimeMarker(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const summary = useMemo(() => summarize(billsApi.occurrences), [billsApi.occurrences]);
   const calendarDays = useMemo(() => {
@@ -53,12 +67,21 @@ export default function BillsManager({ showHeading = true }: Props) {
     }
     return map;
   }, [billsApi.occurrences]);
-  const filteredOccurrences = useMemo(() => billsApi.occurrences.filter((occurrence) => {
-    if (filter === "all") return true;
-    if (filter === "paid") return occurrence.status === "paid";
-    if (filter === "overdue") return billState(occurrence) === "overdue";
-    return occurrence.status === "pending";
-  }), [billsApi.occurrences, filter]);
+  const filteredOccurrences = useMemo(() => billsApi.occurrences
+    .filter((occurrence) => {
+      if (filter === "all") return true;
+      if (filter === "paid") return occurrence.status === "paid";
+      if (filter === "overdue") return billState(occurrence) === "overdue";
+      return occurrence.status === "pending";
+    })
+    .sort((a, b) => {
+      const aState = billState(a);
+      const bState = billState(b);
+      const priorityDifference = STATE_PRIORITY[aState] - STATE_PRIORITY[bState];
+      if (priorityDifference !== 0) return priorityDifference;
+      if (aState === "overdue") return b.due_date.localeCompare(a.due_date);
+      return a.due_date.localeCompare(b.due_date);
+    }), [billsApi.occurrences, filter, timeMarker]);
 
   const openNew = (mode: "single" | "recurring") => {
     setEditingBill(null);
